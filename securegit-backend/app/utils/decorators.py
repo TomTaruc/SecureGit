@@ -14,7 +14,7 @@ def require_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
         if not user:
             abort(401)
@@ -29,7 +29,7 @@ def require_admin(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
         user = User.query.get(user_id)
         if not user or user.is_suspended:
             abort(401)
@@ -48,7 +48,7 @@ def require_project_access(permission: str = "read"):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()
-            user_id = get_jwt_identity()
+            user_id = int(get_jwt_identity())
             user = User.query.get(user_id)
             if not user or user.is_suspended:
                 abort(401)

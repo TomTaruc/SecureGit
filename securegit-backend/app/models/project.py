@@ -11,7 +11,7 @@ class Project(db.Model):
     description    = db.Column(db.Text)
     visibility     = db.Column(db.String(10),  nullable=False, default="private")
     default_branch = db.Column(db.String(100), nullable=False, default="main")
-    updated_at     = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at     = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     created_at     = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     deleted_at     = db.Column(db.DateTime(timezone=True), nullable=True)
 

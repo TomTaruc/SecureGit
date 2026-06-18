@@ -20,7 +20,7 @@ def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
-def backup_repos(dest_dir: str, job: BackupJob) -> str:
+def backup_repos(dest_dir: str, job: BackupJob) -> tuple[str, int]:
     """Tar+gz all bare repositories to destination. Returns archive path."""
     os.makedirs(dest_dir, exist_ok=True)
     archive_name = f"securegit_repos_{_timestamp()}.tar.gz"

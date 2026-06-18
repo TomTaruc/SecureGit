@@ -22,7 +22,7 @@ import os
 @backups_bp.post("")
 @require_admin
 def trigger_backup():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     backup_type = data.get("backup_type", "full")
     destination = data.get("destination", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))

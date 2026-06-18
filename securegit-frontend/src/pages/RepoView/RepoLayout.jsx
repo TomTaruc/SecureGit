@@ -87,7 +87,6 @@ export default function RepoLayout() {
 }
 
 function RepoTab({ to, label }) {
-  const isActive = window.location.pathname === to;
   return (
     <NavLink
       to={to}

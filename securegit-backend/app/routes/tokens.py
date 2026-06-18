@@ -26,7 +26,7 @@ def list_tokens(username, project_name, project, current_user):
 @jwt_required()
 @require_project_access("manage_settings")
 def create_token(username, project_name, project, current_user):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
 
     name   = (data.get("name") or "").strip()

@@ -31,7 +31,7 @@ def _build_clone_url(username: str, project_name: str) -> str:
 @projects_bp.get("")
 @jwt_required()
 def list_projects():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     owned = Project.query.filter(Project.owner_user_id == user_id, Project.deleted_at.is_(None)).all()
     collaborated_ids = [
         c.project_id for c in Collaborator.query.filter_by(user_id=user_id).all()
@@ -48,7 +48,7 @@ def list_projects():
 @projects_bp.post("")
 @jwt_required()
 def create_project():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     data = request.get_json(silent=True) or {}
 
@@ -141,6 +141,7 @@ def update_project(username, project_name, project, current_user):
         project.visibility = data["visibility"]
     if "default_branch" in data:
         project.default_branch = data["default_branch"]
+    project.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="project.update", target_type="project", target_id=project.project_id)
     return jsonify(project.to_dict()), 200

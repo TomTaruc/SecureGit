@@ -11,14 +11,14 @@ users_bp = Blueprint("users", __name__)
 @users_bp.get("/profile")
 @jwt_required()
 def get_profile():
-    user = User.query.get_or_404(get_jwt_identity())
+    user = User.query.get_or_404(int(get_jwt_identity()))
     return jsonify(user.to_dict(include_sensitive=True)), 200
 
 
 @users_bp.patch("/profile")
 @jwt_required()
 def update_profile():
-    user = User.query.get_or_404(get_jwt_identity())
+    user = User.query.get_or_404(int(get_jwt_identity()))
     data = request.get_json(silent=True) or {}
 
     if "email" in data:
@@ -38,7 +38,7 @@ def update_profile():
 @users_bp.patch("/profile/password")
 @jwt_required()
 def change_password():
-    user = User.query.get_or_404(get_jwt_identity())
+    user = User.query.get_or_404(int(get_jwt_identity()))
     data = request.get_json(silent=True) or {}
 
     current_password = data.get("current_password", "")
@@ -62,8 +62,10 @@ def search_users():
     q = request.args.get("q", "").strip()
     if len(q) < 2:
         return jsonify([]), 200
+    # Escape LIKE wildcards to prevent pattern injection
+    q_escaped = q.replace("%", r"\%").replace("_", r"\_")
     users = User.query.filter(
-        User.username.ilike(f"%{q}%"),
+        User.username.ilike(f"%{q_escaped}%", escape="\\"),
         User.is_suspended == False,
     ).limit(20).all()
     return jsonify([u.to_dict() for u in users]), 200

@@ -17,7 +17,6 @@ WORKDIR /app
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn celery redis psycopg2-binary
 
 # Copy project files
 COPY . /app
@@ -37,4 +36,4 @@ ENV GIT_REPOS_BASE=/srv/git
 ENV REDIS_URL=redis://redis:6379/0
 
 # Start Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "run:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "wsgi:app"]

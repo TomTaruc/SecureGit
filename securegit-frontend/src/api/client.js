@@ -1,10 +1,5 @@
 import axios from 'axios';
 
-// In-memory token storage removed; access_token is HTTP-only cookie.
-export const setAccessToken = (token) => {};
-export const clearAccessToken = () => {};
-export const getAccessToken = () => null;
-
 const client = axios.create({
   baseURL: '/api',
   withCredentials: true,  // Send httpOnly cookies
@@ -38,9 +33,13 @@ client.interceptors.response.use(
       originalRequest._retry = true;
       // Deduplicate concurrent refresh calls
       if (!_refreshPromise) {
+        const match = document.cookie.match(/(?:^|; )csrf_refresh_token=([^;]+)/);
+        const refreshCsrf = match ? match[1] : null;
+        const headers = refreshCsrf ? { 'X-CSRF-TOKEN': refreshCsrf } : {};
+        
         _refreshPromise = axios.post('/api/auth/refresh', {}, { 
           withCredentials: true,
-          xsrfCookieName: 'csrf_refresh_token',
+          headers
         })
           .finally(() => { _refreshPromise = null; });
       }

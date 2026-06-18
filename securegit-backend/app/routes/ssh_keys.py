@@ -12,7 +12,7 @@ ssh_keys_bp = Blueprint("ssh_keys", __name__)
 @ssh_keys_bp.get("")
 @jwt_required()
 def list_keys():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     keys = SSHKey.query.filter_by(user_id=user_id).order_by(SSHKey.added_at.desc()).all()
     return jsonify([k.to_dict() for k in keys]), 200
 
@@ -21,7 +21,7 @@ def list_keys():
 @jwt_required()
 @limiter.limit("10 per hour", key_func=get_jwt_identity)
 def add_key():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     data = request.get_json(silent=True) or {}
 
@@ -76,7 +76,7 @@ def add_key():
 @ssh_keys_bp.delete("/<int:key_id>")
 @jwt_required()
 def revoke_key(key_id: int):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     key = SSHKey.query.filter_by(key_id=key_id, user_id=user_id).first_or_404()
 
     try:

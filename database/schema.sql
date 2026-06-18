@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS projects (
     default_branch VARCHAR(100) NOT NULL DEFAULT 'main',
     updated_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    deleted_at     TIMESTAMPTZ,
     UNIQUE(owner_user_id, project_name)
 );
 
@@ -70,7 +71,6 @@ CREATE INDEX IF NOT EXISTS idx_projects_owner ON projects(owner_user_id);
 CREATE TABLE IF NOT EXISTS repositories (
     repo_id          SERIAL PRIMARY KEY,
     project_id       INT          NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE,
-    repo_project_id  INT          NOT NULL REFERENCES projects(project_id),
     repo_path        VARCHAR(255) NOT NULL UNIQUE,
     clone_url        VARCHAR(255) NOT NULL,
     is_initialized   BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -119,8 +119,7 @@ CREATE TABLE IF NOT EXISTS commits (
     short_hash           CHAR(7)  NOT NULL,
     message              TEXT     NOT NULL,
     committed_at         TIMESTAMPTZ NOT NULL,
-    parent_hash          CHAR(40),
-    fs_commit_author_id  INT REFERENCES users(user_id)
+    parent_hash          CHAR(40)
 );
 
 CREATE INDEX IF NOT EXISTS idx_commits_branch ON commits(branch_id);
@@ -178,10 +177,8 @@ CREATE TABLE IF NOT EXISTS collaborators (
         "manage_collaborators": false,
         "manage_settings": false,
         "admin": false
-    }'::jsonb,
+    },
     granted_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    fs_collab_project_id  INT REFERENCES projects(project_id),
-    fs_collab_user_id     INT REFERENCES users(user_id),
     UNIQUE(project_id, user_id)
 );
 

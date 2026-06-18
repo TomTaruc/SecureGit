@@ -76,6 +76,7 @@ def git_init_bare(path: str) -> None:
         f.write("while read oldrev newrev refname; do\n")
         f.write("    resp=$(curl -s -w \"\\n%{http_code}\" -X POST http://127.0.0.1:5000/internal/hook/pre-receive \\\n")
         f.write("      -H \"Content-Type: application/json\" \\\n")
+        f.write("      -H \"X-Hook-Secret: $INTERNAL_HOOK_SECRET\" \\\n")
         f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\", \\\"user_id\\\": \\\"$SECUREGIT_USER_ID\\\"}\")\n")
         f.write("    http_code=$(echo \"$resp\" | tail -n1)\n")
         f.write("    body=$(echo \"$resp\" | sed '\\$d')\n")
@@ -93,6 +94,7 @@ def git_init_bare(path: str) -> None:
         f.write("while read oldrev newrev refname; do\n")
         f.write("    curl -s -f -X POST http://127.0.0.1:5000/internal/hook/post-receive \\\n")
         f.write("      -H \"Content-Type: application/json\" \\\n")
+        f.write("      -H \"X-Hook-Secret: $INTERNAL_HOOK_SECRET\" \\\n")
         f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\"}\" > /dev/null\n")
         f.write("done\n")
     os.chmod(post_receive_path, 0o755)
@@ -314,10 +316,12 @@ def _parse_unified_diff(raw: str) -> list[dict]:
         elif current_hunk is not None:
             if line.startswith("+"):
                 current_hunk["lines"].append({"type": "add", "content": line[1:]})
-                current_file["lines_added"] += 1
+                if current_file is not None:
+                    current_file["lines_added"] += 1
             elif line.startswith("-"):
                 current_hunk["lines"].append({"type": "del", "content": line[1:]})
-                current_file["lines_deleted"] += 1
+                if current_file is not None:
+                    current_file["lines_deleted"] += 1
             else:
                 current_hunk["lines"].append({"type": "ctx", "content": line[1:] if line.startswith(" ") else line})
 

@@ -1,4 +1,4 @@
-import client, { setAccessToken, clearAccessToken } from './client';
+import client from './client';
 
 export const login = (credentials) =>
   client.post('/auth/login', credentials);

@@ -49,7 +49,7 @@ def list_users():
 @admin_bp.post("/users")
 @require_admin
 def create_user():
-    actor_id = get_jwt_identity()
+    actor_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
     email    = (data.get("email") or "").strip()
@@ -81,7 +81,7 @@ def create_user():
 @admin_bp.patch("/users/<int:user_id>")
 @require_admin
 def update_user(user_id: int):
-    actor_id = get_jwt_identity()
+    actor_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     data = request.get_json(silent=True) or {}
 
@@ -104,7 +104,7 @@ def update_user(user_id: int):
 @admin_bp.delete("/users/<int:user_id>")
 @require_admin
 def delete_user(user_id: int):
-    actor_id = get_jwt_identity()
+    actor_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     if user.user_id == actor_id:
         return jsonify({"error": "forbidden", "message": "Cannot delete your own account.", "status": 403}), 403
@@ -183,7 +183,9 @@ def system_health():
 @admin_bp.get("/projects")
 @require_admin
 def admin_projects():
-    projects = Project.query.order_by(Project.created_at.desc()).all()
+    projects = Project.query.filter(
+        Project.deleted_at.is_(None)
+    ).order_by(Project.created_at.desc()).all()
     return jsonify([p.to_dict() for p in projects]), 200
 
 
@@ -225,9 +227,13 @@ def audit_log_stream():
     """Server-Sent Events — poll for new audit entries every 5s."""
     last_id = request.args.get("last_id", 0, type=int)
 
-    def generate():
+    from typing import Generator
+    def generate() -> Generator[str, None, None]:
         nonlocal last_id
-        while True:
+        max_iterations = 360  # ~30 minutes at 5s intervals
+        iterations = 0
+        while iterations < max_iterations:
+            iterations += 1
             new_entries = (
                 AuditLog.query
                 .filter(AuditLog.log_id > last_id)
@@ -239,6 +245,8 @@ def audit_log_stream():
                 last_id = entry.log_id
                 data = json.dumps(entry.to_dict())
                 yield f"id: {entry.log_id}\ndata: {data}\n\n"
+            # Send keepalive comment to detect client disconnect
+            yield ": keepalive\n\n"
             time.sleep(5)
 
     return Response(
@@ -273,7 +281,7 @@ def get_config():
 @admin_bp.patch("/config")
 @require_admin
 def update_config():
-    actor_id = get_jwt_identity()
+    actor_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     updated = []
     for key, value in data.items():

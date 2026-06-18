@@ -40,6 +40,8 @@ def log(
         ip_address=ip,
     )
     db.session.add(entry)
-    db.session.commit()
+    # Flush to assign PK but let the calling route manage the transaction.
+    # This prevents premature commits of partial route-level work.
+    db.session.flush()
     logger.info("AUDIT actor=%d action=%s target=%s/%s", actor_id, action, target_type, target_id)
     return entry

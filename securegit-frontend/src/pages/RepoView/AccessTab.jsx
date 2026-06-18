@@ -151,10 +151,10 @@ export default function AccessTab() {
           collabs.map((c, i) => (
             <div key={c.user_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', borderBottom: i < collabs.length - 1 ? 'var(--border)' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                <Avatar username={`User${c.user_id}`} />
+                <Avatar username={c.username || `User${c.user_id}`} />
                 <div>
-                  <div style={{ fontWeight: '500', color: 'var(--color-text-primary)' }}>User ID: {c.user_id}</div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Added {new Date(c.added_at).toLocaleDateString()}</div>
+                  <div style={{ fontWeight: '500', color: 'var(--color-text-primary)' }}>{c.username || `User ID: ${c.user_id}`}</div>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Added {new Date(c.granted_at).toLocaleDateString()}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>

@@ -17,7 +17,7 @@ dashboard_bp = Blueprint("dashboard", __name__)
 @dashboard_bp.get("/stats")
 @jwt_required()
 def stats():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
@@ -48,7 +48,7 @@ def stats():
 @dashboard_bp.get("/activity")
 @jwt_required()
 def activity():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     limit = min(int(request.args.get("limit", 20)), 100)
     

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import PageShell from '../../components/layout/PageShell';
+import { useParams, Link, useNavigate, useOutletContext } from 'react-router-dom';
 import DiffViewer from '../../components/code/DiffViewer';
 import { Skeleton } from '../../components/ui/Spinner';
 import { Avatar, TimeAgo } from '../../components/shared/SharedComponents';
@@ -8,7 +7,8 @@ import Button from '../../components/ui/Button';
 import * as commitsApi from '../../api/commits';
 
 export default function CommitDetail() {
-  const { username, projectName, commitHash } = useParams();
+  const { commitHash } = useParams();
+  const { username, projectName } = useOutletContext();
   const [detail, setDetail] = useState(null);
   const [diff,   setDiff]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +28,7 @@ export default function CommitDetail() {
   const totalDeleted = diff.reduce((s, f) => s + (f.lines_deleted ?? f.linesDeleted ?? 0), 0);
 
   return (
-    <PageShell>
+    <div>
       <div style={{ maxWidth: '1000px' }}>
         {/* Breadcrumb */}
         <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -92,6 +92,6 @@ export default function CommitDetail() {
           </>
         )}
       </div>
-    </PageShell>
+    </div>
   );
 }

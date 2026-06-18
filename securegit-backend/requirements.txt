@@ -42,3 +42,5 @@ python-dotenv==1.0.1
 
 # Redis
 redis==5.0.7
+fakeredis>=2.23
+celery>=5.3

@@ -48,7 +48,7 @@ def login():
 @auth_bp.post("/logout")
 @jwt_required()
 def logout():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     from flask_jwt_extended import get_jwt, decode_token
     from datetime import datetime, timezone
     from flask import current_app
@@ -86,7 +86,7 @@ def logout():
 @auth_bp.post("/refresh")
 @jwt_required(refresh=True)
 def refresh():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     access_token = create_access_token(identity=user_id)
     response = jsonify({"message": "Token refreshed."})
     set_access_cookies(response, access_token)
@@ -96,6 +96,6 @@ def refresh():
 @auth_bp.get("/me")
 @jwt_required()
 def me():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get_or_404(user_id)
     return jsonify(user.to_dict(include_sensitive=True)), 200
