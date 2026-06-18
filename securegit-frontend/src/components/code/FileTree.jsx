@@ -106,16 +106,7 @@ export default function FileTree({
                   </span>
                 </div>
               </td>
-              {/* Last commit message */}
-              <td style={{
-                padding: 'var(--space-2) var(--space-4)',
-                fontSize: 'var(--font-size-xs)',
-                color: 'var(--color-text-muted)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                maxWidth: '300px',
-              }}>
-                {entry.last_commit_message || ''}
-              </td>
+
               {/* Size / time */}
               <td style={{
                 padding: 'var(--space-2) var(--space-4)',

@@ -1,22 +1,28 @@
 import axios from 'axios';
 
-// In-memory token storage (not localStorage for XSS protection)
-let _accessToken = null;
-
-export const setAccessToken = (token) => { _accessToken = token; };
-export const clearAccessToken = () => { _accessToken = null; };
-export const getAccessToken = () => _accessToken;
+// In-memory token storage removed; access_token is HTTP-only cookie.
+export const setAccessToken = (token) => {};
+export const clearAccessToken = () => {};
+export const getAccessToken = () => null;
 
 const client = axios.create({
   baseURL: '/api',
-  withCredentials: true,  // Send httpOnly refresh token cookie
+  withCredentials: true,  // Send httpOnly cookies
   timeout: 30000,
 });
 
-// Attach access token from memory
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|; )csrf_access_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
+// Attach CSRF token
 client.interceptors.request.use((config) => {
-  if (_accessToken) {
-    config.headers.Authorization = `Bearer ${_accessToken}`;
+  if (config.method && ['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      config.headers['X-CSRF-TOKEN'] = csrfToken;
+    }
   }
   return config;
 });
@@ -32,14 +38,16 @@ client.interceptors.response.use(
       originalRequest._retry = true;
       // Deduplicate concurrent refresh calls
       if (!_refreshPromise) {
-        _refreshPromise = axios.post('/api/auth/refresh', {}, { withCredentials: true })
+        _refreshPromise = axios.post('/api/auth/refresh', {}, { 
+          withCredentials: true,
+          xsrfCookieName: 'csrf_refresh_token',
+        })
           .finally(() => { _refreshPromise = null; });
       }
       try {
         await _refreshPromise;
         return client(originalRequest);
       } catch (refreshErr) {
-        clearAccessToken();
         window.location.href = '/login';
         return Promise.reject(refreshErr);
       }

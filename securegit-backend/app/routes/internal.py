@@ -142,7 +142,7 @@ def post_receive():
         author = User.query.filter_by(email=c["author_email"]).first()
         commit = Commit(
             branch_id=branch.branch_id,
-            author_id=author.user_id if author else 1,
+            author_id=author.user_id if author else project.owner_user_id,
             commit_hash=c["hash"],
             short_hash=c["short_hash"],
             message=c["message"],

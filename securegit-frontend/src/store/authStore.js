@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import * as authApi from '../api/auth';
-import { setAccessToken, clearAccessToken } from '../api/client';
 
 const useAuthStore = create(
   persist(
@@ -24,7 +23,6 @@ const useAuthStore = create(
 
       logout: async () => {
         try { await authApi.logout(); } catch { /* ignore */ }
-        clearAccessToken();
         set({ user: null, isAuthenticated: false });
       },
 

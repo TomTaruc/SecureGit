@@ -130,7 +130,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
             return {"success": False, "error": result.stderr.strip()}
         # Push the result back to the bare repo
         subprocess.run(
-            ["git", "push", "origin", _safe_ref(target)],
+            ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
         )
         return {"success": True, "strategy": "fast-forward"}
@@ -163,7 +163,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
         )
         subprocess.run(
-            ["git", "push", "origin", _safe_ref(target)],
+            ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
         )
         return {"success": True, "strategy": "squash"}
@@ -200,7 +200,7 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
         )
         subprocess.run(
-            ["git", "push", "origin", _safe_ref(target)],
+            ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
         )
         return {"success": True, "strategy": "rebase"}

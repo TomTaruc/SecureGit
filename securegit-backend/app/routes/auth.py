@@ -49,21 +49,33 @@ def login():
 @jwt_required()
 def logout():
     user_id = get_jwt_identity()
-    from flask_jwt_extended import get_jwt
+    from flask_jwt_extended import get_jwt, decode_token
     from datetime import datetime, timezone
+    from flask import current_app
+    from ..extensions import redis_client
+    
+    now = datetime.now(timezone.utc).timestamp()
     
     # Revoke access token
     jwt_data = get_jwt()
     jti = jwt_data["jti"]
     exp = jwt_data.get("exp")
-    if exp:
-        now = datetime.now(timezone.utc).timestamp()
-        ttl = max(int(exp - now), 10)
-    else:
-        ttl = 30 * 24 * 3600 # 30 days default if no expiration
+    ttl = max(int(exp - now), 10) if exp else 30 * 24 * 3600
     
-    from ..extensions import redis_client
     redis_client.setex(jti, ttl, "true")
+
+    # Revoke refresh token
+    refresh_cookie_name = current_app.config.get("JWT_REFRESH_COOKIE_NAME", "refresh_token_cookie")
+    refresh_token = request.cookies.get(refresh_cookie_name)
+    if refresh_token:
+        try:
+            refresh_data = decode_token(refresh_token)
+            r_jti = refresh_data["jti"]
+            r_exp = refresh_data.get("exp")
+            r_ttl = max(int(r_exp - now), 10) if r_exp else 30 * 24 * 3600
+            redis_client.setex(r_jti, r_ttl, "true")
+        except Exception:
+            pass
 
     audit_service.log(actor_id=user_id, action="auth.logout", target_type="user", target_id=user_id)
     response = jsonify({"message": "Logged out."})

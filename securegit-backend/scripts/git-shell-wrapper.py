@@ -80,7 +80,7 @@ def main():
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        "http://127.0.0.1:5000/api/internal/ssh-auth",
+        "http://127.0.0.1:5000/internal/ssh-auth",
         data=req_data,
         headers={
             "Content-Type": "application/json",

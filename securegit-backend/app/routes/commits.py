@@ -35,7 +35,7 @@ def _sync_commit(project, commit_data: dict) -> Commit:
 
     # Try to match author by email
     author = User.query.filter_by(email=commit_data["author_email"]).first()
-    author_id = author.user_id if author else 1  # fallback to first admin
+    author_id = author.user_id if author else project.owner_user_id  # fallback to project owner
 
     commit = Commit(
         branch_id=branch.branch_id,

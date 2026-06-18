@@ -10,6 +10,9 @@ def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config[config_name])
 
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
     # ---------------------------------------------------------------------------
     # Initialize extensions
     # ---------------------------------------------------------------------------
@@ -36,7 +39,7 @@ def create_app(config_name: str | None = None) -> Flask:
         talisman.init_app(
             app,
             content_security_policy=csp,
-            force_https=True,
+            force_https=False,
             strict_transport_security=True,
         )
 
@@ -68,7 +71,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(ssh_keys_bp,  url_prefix="/api/ssh-keys")
     app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
     app.register_blueprint(admin_bp,     url_prefix="/api/admin")
-    app.register_blueprint(internal_bp,  url_prefix="/internal")
+    app.register_blueprint(internal_bp,  url_prefix="/api/internal")
     app.register_blueprint(merge_bp,     url_prefix="/api/merge")
     app.register_blueprint(tokens_bp,    url_prefix="/api/tokens")
     app.register_blueprint(backups_bp,   url_prefix="/api/backups")

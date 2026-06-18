@@ -89,9 +89,9 @@ export default function BranchesTab() {
                 {b.is_protected && <Badge variant="warning">Protected</Badge>}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                {b.last_commit_hash && (
+                {b.hash && (
                   <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    {b.last_commit_hash.slice(0, 7)}
+                    {b.hash.slice(0, 7)}
                   </code>
                 )}
                 {!b.is_default && (
