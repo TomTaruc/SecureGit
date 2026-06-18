@@ -1,0 +1,172 @@
+import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import { Skeleton } from '../../components/ui/Spinner';
+import DiffViewer from '../../components/code/DiffViewer';
+import useUIStore from '../../store/uiStore';
+import * as adminApi from '../../api/admin';
+
+export default function MergeTab() {
+  const { username, projectName, branches, project } = useOutletContext();
+  const [base, setBase] = useState(project.default_branch || 'main');
+  const [head, setHead] = useState('');
+  const [compareData, setCompareData] = useState(null);
+  const [conflicts, setConflicts] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [strategy, setStrategy] = useState('ff');
+
+  const toastSuccess = useUIStore(s => s.toastSuccess);
+  const toastError = useUIStore(s => s.toastError);
+
+  const runCompare = async () => {
+    if (!head || head === base) return;
+    setLoading(true);
+    setCompareData(null);
+    setConflicts(null);
+    try {
+      const [compRes, confRes] = await Promise.all([
+        adminApi.compareBranches(username, projectName, { base, head }),
+        adminApi.checkConflicts(username, projectName, { base, head })
+      ]);
+      setCompareData(compRes.data);
+      setConflicts(confRes.data);
+    } catch (err) {
+      toastError('Failed to compare branches');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { runCompare(); }, [base, head]);
+
+  const handleMerge = async () => {
+    if (!window.confirm(`Merge ${head} into ${base} using ${strategy} strategy?`)) return;
+    setMerging(true);
+    try {
+      await adminApi.doMerge(username, projectName, { base, head, strategy, message: `Merge ${head} into ${base}` });
+      toastSuccess('Merge successful');
+      setHead('');
+      setCompareData(null);
+      setConflicts(null);
+    } catch (err) {
+      toastError(err.response?.data?.message || err.response?.data?.error || 'Merge failed');
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  return (
+    <div>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Base branch</label>
+            <select
+              value={base} onChange={e => setBase(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+            >
+              {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+            </select>
+          </div>
+          <span style={{ marginTop: '20px', color: 'var(--color-text-muted)' }}>←</span>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Compare branch</label>
+            <select
+              value={head} onChange={e => setHead(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+            >
+              <option value="">Select branch...</option>
+              {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {loading && <div style={{ padding: 'var(--space-4)' }}><Skeleton height="40px" style={{ marginBottom: '10px' }}/><Skeleton height="200px" /></div>}
+
+      {!loading && compareData && (
+        <div>
+          {/* Status Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-5)' }}>
+            <div>
+              {conflicts?.has_conflicts ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Badge variant="error">✕ Conflicts Detected</Badge>
+                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Cannot merge automatically.</span>
+                </div>
+              ) : compareData.commits.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Badge variant="info">✓ Up to date</Badge>
+                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>There are no commits to merge.</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Badge variant="success">✓ Able to merge</Badge>
+                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
+                </div>
+              )}
+            </div>
+
+            {compareData.commits.length > 0 && !conflicts?.has_conflicts && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                <select
+                  value={strategy} onChange={e => setStrategy(e.target.value)}
+                  style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
+                >
+                  <option value="ff">Fast-forward</option>
+                  <option value="squash">Squash and Merge</option>
+                  <option value="rebase">Rebase and Merge</option>
+                </select>
+                <Button variant="success" loading={merging} onClick={handleMerge}>
+                  Merge Branch
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Commits List */}
+          {compareData.commits.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Commits ({compareData.commits.length})</h3>
+              <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                {compareData.commits.map((c, i) => (
+                  <div key={c.hash} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < compareData.commits.length - 1 ? 'var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '500', color: 'var(--color-text-primary)' }}>{c.message}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c.author} · {c.date}</div>
+                    </div>
+                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c.short_hash}</code>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conflict List */}
+          {conflicts?.has_conflicts && (
+            <div style={{ marginBottom: 'var(--space-6)' }}>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Conflicting Files</h3>
+              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-error)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                {conflicts.conflicts.map((c, i) => (
+                  <div key={i} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < conflicts.conflicts.length - 1 ? 'var(--border)' : 'none', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)' }}>
+                    {c.file}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Diff */}
+          {compareData.diff && compareData.diff.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Changes</h3>
+              <DiffViewer fileDiffs={compareData.diff} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

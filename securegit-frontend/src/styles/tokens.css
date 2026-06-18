@@ -1,0 +1,103 @@
+/* =============================================================================
+   SecureGit Design Token System
+   Strict monochrome palette + status indicators
+   ============================================================================= */
+
+:root {
+  /* ── Color palette ─────────────────────────────────────────────────────── */
+  --color-bg:             #0D0D0D;
+  --color-surface:        #1A1A1A;
+  --color-surface-2:      #222222;
+  --color-surface-3:      #2A2A2A;
+  --color-border:         #2E2E2E;
+  --color-border-light:   #3D3D3D;
+  --color-text-primary:   #F5F5F5;
+  --color-text-secondary: #9E9E9E;
+  --color-text-muted:     #6B6B6B;
+  --color-text-inverse:   #0D0D0D;
+  --color-white:          #FFFFFF;
+
+  /* ── Status (muted) ────────────────────────────────────────────────────── */
+  --color-success:        #3D7A4A;
+  --color-success-bg:     #1A2E1F;
+  --color-success-text:   #7DC88A;
+  --color-error:          #8B2C2C;
+  --color-error-bg:       #2E1515;
+  --color-error-text:     #C97272;
+  --color-warning:        #7A6A2A;
+  --color-warning-bg:     #2E2810;
+  --color-warning-text:   #C9B05E;
+
+  /* ── Diff colors ───────────────────────────────────────────────────────── */
+  --color-diff-add:       #1A2E1F;
+  --color-diff-add-line:  #2A4A2F;
+  --color-diff-del:       #2E1515;
+  --color-diff-del-line:  #4A2020;
+  --color-diff-hunk:      #1A1E2E;
+  --color-diff-hunk-text: #7A8AB5;
+
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+  --font-sans: 'Inter', 'system-ui', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --font-size-xs:  11px;
+  --font-size-sm:  12px;
+  --font-size-md:  14px;
+  --font-size-lg:  16px;
+  --font-size-xl:  20px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 32px;
+
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  --line-height-tight:  1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed:1.75;
+
+  /* ── Spacing ───────────────────────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ── Border Radius ─────────────────────────────────────────────────────── */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ── Borders ───────────────────────────────────────────────────────────── */
+  --border:       1px solid var(--color-border);
+  --border-light: 1px solid var(--color-border-light);
+
+  /* ── Shadows ───────────────────────────────────────────────────────────── */
+  --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg:  0 8px 24px rgba(0, 0, 0, 0.7);
+
+  /* ── Layout ────────────────────────────────────────────────────────────── */
+  --nav-height:     60px;
+  --sidebar-width:  220px;
+  --content-max-w:  1200px;
+
+  /* ── Transitions ───────────────────────────────────────────────────────── */
+  --transition-fast:   80ms ease;
+  --transition-normal: 150ms ease;
+  --transition-slow:   250ms ease;
+
+  /* ── Z-index ───────────────────────────────────────────────────────────── */
+  --z-dropdown: 100;
+  --z-modal:    200;
+  --z-toast:    300;
+  --z-nav:       50;
+}

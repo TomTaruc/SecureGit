@@ -1,0 +1,30 @@
+[Unit]
+Description=SecureGit Flask Backend (Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/securegit/backend
+Environment="FLASK_ENV=production"
+EnvironmentFile=/opt/securegit/backend/.env
+ExecStart=/opt/securegit/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind 127.0.0.1:5000 \
+    --timeout 60 \
+    --access-logfile /var/log/securegit/access.log \
+    --error-logfile  /var/log/securegit/error.log \
+    --capture-output \
+    wsgi:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
