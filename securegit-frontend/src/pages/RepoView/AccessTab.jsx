@@ -7,6 +7,7 @@ import Badge from '../../components/ui/Badge';
 import { Avatar } from '../../components/shared/SharedComponents';
 import useUIStore from '../../store/uiStore';
 import * as projectsApi from '../../api/projects';
+import * as usersApi from '../../api/users';
 
 export default function AccessTab() {
   const { username, projectName, project } = useOutletContext();
@@ -18,6 +19,11 @@ export default function AccessTab() {
   const toastSuccess = useUIStore(s => s.toastSuccess);
   const toastError   = useUIStore(s => s.toastError);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
   const fetchCollabs = () => {
     setLoading(true);
     projectsApi.listCollaborators(username, projectName)
@@ -28,6 +34,21 @@ export default function AccessTab() {
 
   useEffect(() => { fetchCollabs(); }, [username, projectName]);
 
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSearching(true);
+      usersApi.searchUsers(searchQuery)
+        .then(res => setSearchResults(res.data || []))
+        .catch(() => {})
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const handleAdd = async (e) => {
     e.preventDefault();
     if (!newUserId) return;
@@ -36,6 +57,8 @@ export default function AccessTab() {
       await projectsApi.addCollaborator(username, projectName, { user_id: parseInt(newUserId), permission: newPerm });
       toastSuccess('Collaborator added');
       setNewUserId('');
+      setSearchQuery('');
+      setSearchResults([]);
       fetchCollabs();
     } catch (err) {
       toastError(err.response?.data?.message || 'Failed to add collaborator');
@@ -71,10 +94,37 @@ export default function AccessTab() {
     <div>
       <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
         <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
-        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>User ID</label>
-            <Input type="number" value={newUserId} onChange={e => setNewUserId(e.target.value)} placeholder="e.g. 2" required />
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Search User</label>
+            <Input 
+              type="text" 
+              value={searchQuery} 
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                if (newUserId && e.target.value !== searchQuery) setNewUserId('');
+              }} 
+              placeholder="Type username..." 
+            />
+            {searchResults.length > 0 && !newUserId && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--color-surface-2)', border: 'var(--border)', borderRadius: 'var(--radius-md)', marginTop: '4px', zIndex: 10, maxHeight: '200px', overflowY: 'auto' }}>
+                {searchResults.map(u => (
+                  <div 
+                    key={u.user_id} 
+                    onClick={() => {
+                      setNewUserId(u.user_id);
+                      setSearchQuery(u.username);
+                      setSearchResults([]);
+                    }}
+                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: '10px' }}
+                  >
+                    <Avatar username={u.username} size={24} />
+                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>{u.username}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {newUserId && <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-success)', marginTop: '4px' }}>User Selected (ID: {newUserId})</div>}
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Role</label>
@@ -85,7 +135,9 @@ export default function AccessTab() {
               {perms.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
-          <Button type="submit" loading={adding} disabled={!newUserId}>Add</Button>
+          <div style={{ paddingTop: '22px' }}>
+            <Button type="submit" loading={adding} disabled={!newUserId}>Add</Button>
+          </div>
         </form>
       </div>
 

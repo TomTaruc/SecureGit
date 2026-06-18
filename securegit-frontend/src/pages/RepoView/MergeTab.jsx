@@ -150,8 +150,15 @@ export default function MergeTab() {
               <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Conflicting Files</h3>
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-error)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                 {conflicts.conflicts.map((c, i) => (
-                  <div key={i} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < conflicts.conflicts.length - 1 ? 'var(--border)' : 'none', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)' }}>
-                    {c.file}
+                  <div key={i} style={{ borderBottom: i < conflicts.conflicts.length - 1 ? 'var(--border)' : 'none' }}>
+                    <div style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)', fontWeight: '500' }}>
+                      {c.file}
+                    </div>
+                    {c.content && (
+                      <pre style={{ margin: 0, padding: 'var(--space-3) var(--space-5)', background: 'var(--color-surface-2)', borderTop: 'var(--border)', fontSize: '11px', color: 'var(--color-text-muted)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                        {c.content}
+                      </pre>
+                    )}
                   </div>
                 ))}
               </div>

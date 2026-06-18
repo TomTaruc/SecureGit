@@ -23,13 +23,14 @@ KEY_RESTRICTIONS = (
 FINGERPRINT_RE = re.compile(r'SHA256:[A-Za-z0-9+/=]+')
 
 
-def _build_authorized_line(user_id: int, public_key: str) -> str:
+def _build_authorized_line(user_id: int, public_key: str, fingerprint: str) -> str:
     """Build a restricted authorized_keys entry for a user."""
-    hook = GITEA_HOOK
+    # The python wrapper needs to be executed
+    hook = "/opt/securegit/backend/venv/bin/python3 /opt/securegit/backend/scripts/git-shell-wrapper.py"
     return (
-        f'command="{hook}",{KEY_RESTRICTIONS} '
+        f'command="{hook} {user_id}",{KEY_RESTRICTIONS} '
         f'{public_key.strip()} '
-        f'# securegit-user-{user_id}'
+        f'# securegit-user-{user_id}-{fingerprint}'
     )
 
 
@@ -95,15 +96,16 @@ def validate_key_format(public_key: str) -> Optional[str]:
 def add_key(user_id: int, public_key: str) -> None:
     """Append a new authorized_keys entry for user_id."""
     lines = _read_keys()
-    new_line = _build_authorized_line(user_id, public_key) + "\n"
+    fp = validate_key_format(public_key) or "unknown"
+    new_line = _build_authorized_line(user_id, public_key, fp) + "\n"
     lines.append(new_line)
     _write_keys_atomic(lines)
     logger.info("Added SSH key for user_id=%d", user_id)
 
 
 def remove_key(user_id: int, fingerprint: str) -> None:
-    """Remove all authorized_keys lines tagged with user_id."""
-    tag = f"# securegit-user-{user_id}"
+    """Remove specific authorized_keys line tagged with user_id and fingerprint."""
+    tag = f"# securegit-user-{user_id}-{fingerprint}"
     lines = _read_keys()
     filtered = [line for line in lines if tag not in line]
     if len(filtered) == len(lines):
@@ -115,11 +117,12 @@ def remove_key(user_id: int, fingerprint: str) -> None:
 def rebuild_authorized_keys(all_keys: list[dict]) -> None:
     """
     Full rebuild of authorized_keys from DB records.
-    Called on startup or repair. Each dict: {user_id, public_key}.
+    Called on startup or repair. Each dict: {user_id, public_key, fingerprint}.
     """
     lines = []
     for entry in all_keys:
-        line = _build_authorized_line(entry["user_id"], entry["public_key"]) + "\n"
+        fp = entry.get("fingerprint") or "unknown"
+        line = _build_authorized_line(entry["user_id"], entry["public_key"], fp) + "\n"
         lines.append(line)
     _write_keys_atomic(lines)
     logger.info("Rebuilt authorized_keys with %d entries", len(lines))

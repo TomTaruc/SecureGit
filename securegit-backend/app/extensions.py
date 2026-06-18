@@ -7,6 +7,9 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_talisman import Talisman
 
+import redis
+import os
+
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
@@ -14,3 +17,5 @@ bcrypt = Bcrypt()
 cors = CORS()
 limiter = Limiter(key_func=get_remote_address)
 talisman = Talisman()
+
+redis_client = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

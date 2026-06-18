@@ -69,30 +69,30 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
     tmp_dir = tempfile.mkdtemp(prefix="securegit-merge-")
     conflicts = []
     try:
-        # Clone the bare repo into a temp working directory
         subprocess.run(
-            ["git", "clone", "--local", repo_path, tmp_dir],
-            check=True, capture_output=True, shell=False,
+            ["git", "worktree", "add", tmp_dir, _safe_ref(base)],
+            cwd=repo_path, check=True, capture_output=True, shell=False,
         )
-        # Checkout base
-        subprocess.run(
-            ["git", "checkout", _safe_ref(base)],
-            cwd=tmp_dir, check=True, capture_output=True, shell=False,
-        )
-        # Attempt merge --no-commit
         result = subprocess.run(
             ["git", "merge", "--no-commit", "--no-ff", _safe_ref(head)],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
         )
         if result.returncode != 0:
-            # Parse conflicting files
             status = subprocess.run(
                 ["git", "diff", "--name-only", "--diff-filter=U"],
                 cwd=tmp_dir, capture_output=True, text=True, shell=False,
             )
             for fname in status.stdout.splitlines():
-                conflicts.append({"file": fname.strip(), "type": "content"})
-        # Abort the merge
+                fname = fname.strip()
+                file_path = os.path.join(tmp_dir, fname)
+                content = ""
+                try:
+                    if os.path.exists(file_path):
+                        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                            content = f.read()
+                except Exception:
+                    pass
+                conflicts.append({"file": fname, "type": "content", "content": content})
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=tmp_dir, capture_output=True, shell=False,
@@ -100,6 +100,10 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
     except Exception as e:
         logger.error("Conflict detection failed: %s", e)
     finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", tmp_dir],
+            cwd=repo_path, capture_output=True, shell=False,
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
     return conflicts
 
@@ -115,12 +119,8 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
     tmp_dir = tempfile.mkdtemp(prefix="securegit-ff-")
     try:
         subprocess.run(
-            ["git", "clone", "--local", repo_path, tmp_dir],
-            check=True, capture_output=True, shell=False,
-        )
-        subprocess.run(
-            ["git", "checkout", _safe_ref(target)],
-            cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
+            cwd=repo_path, check=True, capture_output=True, shell=False,
         )
         result = subprocess.run(
             ["git", "merge", "--ff-only", _safe_ref(source)],
@@ -137,6 +137,10 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
     finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", tmp_dir],
+            cwd=repo_path, capture_output=True, shell=False,
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -145,12 +149,8 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
     tmp_dir = tempfile.mkdtemp(prefix="securegit-squash-")
     try:
         subprocess.run(
-            ["git", "clone", "--local", repo_path, tmp_dir],
-            check=True, capture_output=True, shell=False,
-        )
-        subprocess.run(
-            ["git", "checkout", _safe_ref(target)],
-            cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
+            cwd=repo_path, check=True, capture_output=True, shell=False,
         )
         result = subprocess.run(
             ["git", "merge", "--squash", _safe_ref(source)],
@@ -170,6 +170,10 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
     except Exception as e:
         return {"success": False, "error": str(e)}
     finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", tmp_dir],
+            cwd=repo_path, capture_output=True, shell=False,
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
@@ -178,12 +182,8 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
     tmp_dir = tempfile.mkdtemp(prefix="securegit-rebase-")
     try:
         subprocess.run(
-            ["git", "clone", "--local", repo_path, tmp_dir],
-            check=True, capture_output=True, shell=False,
-        )
-        subprocess.run(
-            ["git", "checkout", _safe_ref(source)],
-            cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            ["git", "worktree", "add", tmp_dir, _safe_ref(source)],
+            cwd=repo_path, check=True, capture_output=True, shell=False,
         )
         result = subprocess.run(
             ["git", "rebase", _safe_ref(target)],
@@ -207,4 +207,8 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
     except Exception as e:
         return {"success": False, "error": str(e)}
     finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", tmp_dir],
+            cwd=repo_path, capture_output=True, shell=False,
+        )
         shutil.rmtree(tmp_dir, ignore_errors=True)

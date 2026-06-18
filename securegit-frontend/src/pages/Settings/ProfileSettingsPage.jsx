@@ -4,6 +4,7 @@ import Input from '../../components/ui/Input';
 import useAuthStore from '../../store/authStore';
 import useUIStore from '../../store/uiStore';
 import { Avatar } from '../../components/shared/SharedComponents';
+import client from '../../api/client';
 
 export default function ProfileSettingsPage() {
   const { user } = useAuthStore();
@@ -11,14 +12,17 @@ export default function ProfileSettingsPage() {
   const [loading, setLoading] = useState(false);
   const toastSuccess = useUIStore(s => s.toastSuccess);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    // Mock save
-    setTimeout(() => {
+    try {
+      await client.patch('/users/profile', { email });
       toastSuccess('Profile updated successfully');
+    } catch (err) {
+      useUIStore.getState().toastError(err.response?.data?.error || 'Failed to update profile');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   return (

@@ -17,16 +17,23 @@ export default function CommitsTab() {
   const [loading, setLoading]   = useState(true);
   const [search,  setSearch]    = useState('');
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     setLoading(true);
-    commitsApi.listCommits(username, projectName, { branch, page, per_page: 30 })
+    commitsApi.listCommits(username, projectName, { branch, page, per_page: 30, query: debouncedSearch })
       .then(r => {
         setCommits(r.data.commits || []);
         setTotal(r.data.total || 0);
         setPages(r.data.total_pages || 1);
       })
       .finally(() => setLoading(false));
-  }, [username, projectName, branch, page]);
+  }, [username, projectName, branch, page, debouncedSearch]);
 
   // Group by date
   const grouped = {};

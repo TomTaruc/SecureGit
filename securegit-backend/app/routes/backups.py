@@ -17,13 +17,15 @@ def list_jobs():
     return jsonify([j.to_dict() for j in jobs]), 200
 
 
+import os
+
 @backups_bp.post("")
 @require_admin
 def trigger_backup():
     user_id = get_jwt_identity()
     data = request.get_json(silent=True) or {}
     backup_type = data.get("backup_type", "full")
-    destination = data.get("destination", backup_service.os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
+    destination = data.get("destination", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
 
     # Run backup in background thread so endpoint returns immediately
     def _run():
@@ -38,6 +40,6 @@ def trigger_backup():
 @backups_bp.get("/files")
 @require_admin
 def list_files():
-    dest = request.args.get("dest", backup_service.os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
+    dest = request.args.get("dest", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
     files = backup_service.list_backups(dest)
     return jsonify(files), 200

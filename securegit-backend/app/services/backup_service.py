@@ -41,15 +41,33 @@ def backup_database(dest_dir: str) -> tuple[str, int]:
     dump_name = f"securegit_db_{_timestamp()}.sql.gz"
     dump_path = os.path.join(dest_dir, dump_name)
 
-    # Parse connection from DATABASE_URL
-    result = subprocess.run(
-        ["pg_dump", "--dbname", DATABASE_URL, "--format=custom"],
-        capture_output=True, shell=False,
-    )
+    import urllib.parse
+    import gzip
+    
+    parsed = urllib.parse.urlparse(DATABASE_URL)
+    env = os.environ.copy()
+    if parsed.password:
+        env["PGPASSWORD"] = parsed.password
+
+    cmd = ["pg_dump", "--format=custom"]
+    if parsed.username:
+        cmd.extend(["--username", parsed.username])
+    if parsed.hostname:
+        cmd.extend(["--host", parsed.hostname])
+    if parsed.port:
+        cmd.extend(["--port", str(parsed.port)])
+    if parsed.path:
+        cmd.extend(["--dbname", parsed.path.lstrip("/")])
+
+    try:
+        result = subprocess.run(
+            cmd, capture_output=True, shell=False, env=env, timeout=300
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("pg_dump timed out after 300 seconds")
+
     if result.returncode != 0:
         raise RuntimeError(f"pg_dump failed: {result.stderr.decode()}")
-
-    import gzip
     with gzip.open(dump_path, "wb") as f:
         f.write(result.stdout)
 

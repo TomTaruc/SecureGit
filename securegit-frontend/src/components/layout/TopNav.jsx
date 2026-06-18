@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../store/authStore';
 import { Avatar } from '../shared/SharedComponents';
 
@@ -103,7 +103,8 @@ export default function TopNav() {
 }
 
 function NavLink({ to, children }) {
-  const isActive = window.location.pathname === to || window.location.pathname.startsWith(to + '/');
+  const location = useLocation();
+  const isActive = location.pathname === to || location.pathname.startsWith(to + '/');
   return (
     <Link to={to} style={{
       padding: 'var(--space-2) var(--space-3)',

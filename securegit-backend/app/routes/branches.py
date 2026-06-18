@@ -34,10 +34,13 @@ def list_branches(username, project_name, project, current_user):
         branches = []
     # Annotate with DB info
     default = project.default_branch
+    import fnmatch
+    rules = BranchProtectionRule.query.filter_by(repo_id=project.repository.repo_id).all()
+    
     for b in branches:
         b["is_default"] = (b["name"] == default)
-        # Check protection
-        b["is_protected"] = _is_branch_protected(project.repository.repo_id, b["name"])
+        # Check protection against batched rules
+        b["is_protected"] = any(fnmatch.fnmatch(b["name"], r.branch_pattern) for r in rules)
     return jsonify(branches), 200
 
 

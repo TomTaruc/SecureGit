@@ -3,6 +3,7 @@ Git Service — subprocess wrappers for all git operations.
 All inputs are sanitized before being passed to subprocess.
 Never uses shell=True.
 """
+import os
 import re
 import subprocess
 from typing import Optional
@@ -29,6 +30,8 @@ def _safe_hash(value: str) -> str:
 def _safe_path(value: str) -> str:
     if value == "":
         return value
+    if ".." in value or "//" in value:
+        raise ValueError(f"Unsafe file path (traversal blocked): {value!r}")
     if not SAFE_PATH.match(value):
         raise ValueError(f"Unsafe file path: {value!r}")
     return value
@@ -62,6 +65,37 @@ def git_init_bare(path: str) -> None:
         text=True,
         shell=False,
     )
+    
+    # Install hooks
+    hooks_dir = os.path.join(path, "hooks")
+    os.makedirs(hooks_dir, exist_ok=True)
+    
+    pre_receive_path = os.path.join(hooks_dir, "pre-receive")
+    with open(pre_receive_path, "w") as f:
+        f.write("#!/bin/bash\n")
+        f.write("while read oldrev newrev refname; do\n")
+        f.write("    resp=$(curl -s -w \"\\n%{http_code}\" -X POST http://127.0.0.1:5000/internal/hook/pre-receive \\\n")
+        f.write("      -H \"Content-Type: application/json\" \\\n")
+        f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\", \\\"user_id\\\": \\\"$SECUREGIT_USER_ID\\\"}\")\n")
+        f.write("    http_code=$(echo \"$resp\" | tail -n1)\n")
+        f.write("    body=$(echo \"$resp\" | sed '\\$d')\n")
+        f.write("    if [ \"$http_code\" -ne 200 ]; then\n")
+        f.write("        echo \"$body\" >&2\n")
+        f.write("        exit 1\n")
+        f.write("    fi\n")
+        f.write("done\n")
+        f.write("exit 0\n")
+    os.chmod(pre_receive_path, 0o755)
+    
+    post_receive_path = os.path.join(hooks_dir, "post-receive")
+    with open(post_receive_path, "w") as f:
+        f.write("#!/bin/bash\n")
+        f.write("while read oldrev newrev refname; do\n")
+        f.write("    curl -s -f -X POST http://127.0.0.1:5000/internal/hook/post-receive \\\n")
+        f.write("      -H \"Content-Type: application/json\" \\\n")
+        f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\"}\" > /dev/null\n")
+        f.write("done\n")
+    os.chmod(post_receive_path, 0o755)
 
 
 def git_count_objects(repo_path: str) -> dict:
@@ -117,7 +151,7 @@ def git_default_branch(repo_path: str) -> str:
 # Commit log
 # ---------------------------------------------------------------------------
 
-LOG_FORMAT = "%H|%h|%an|%ae|%s|%ci|%P"
+LOG_FORMAT = "%H|%h|%an|%ae|%s|%cI|%P"
 
 
 def git_log(
@@ -128,6 +162,7 @@ def git_log(
     until: Optional[str] = None,
     skip: int = 0,
     limit: int = 30,
+    query: Optional[str] = None,
 ) -> list[dict]:
     """Return parsed commit log for a branch."""
     args = [
@@ -143,6 +178,8 @@ def git_log(
         args += [f"--since={since}"]
     if until:
         args += [f"--until={until}"]
+    if query:
+        args += [f"--grep={query}", "-i"]
 
     out = _run(repo_path, *args)
     commits = []
@@ -161,10 +198,13 @@ def git_log(
     return commits
 
 
-def git_log_count(repo_path: str, branch: str) -> int:
+def git_log_count(repo_path: str, branch: str, query: Optional[str] = None) -> int:
     """Return total commit count on a branch."""
+    args = ["rev-list", "--count", _safe_ref(branch)]
+    if query:
+        args += [f"--grep={query}", "-i"]
     try:
-        out = _run(repo_path, "rev-list", "--count", _safe_ref(branch))
+        out = _run(repo_path, *args)
         return int(out.strip())
     except (RuntimeError, ValueError):
         return 0
@@ -295,7 +335,7 @@ def _parse_unified_diff(raw: str) -> list[dict]:
 
 def git_ls_tree(repo_path: str, ref: str, path: str = "") -> list[dict]:
     """List directory contents at a ref/path."""
-    args = ["ls-tree", "--long", _safe_ref(ref)]
+    args = ["ls-tree", "--long"]
     if path:
         args.append(f"{_safe_ref(ref)}:{_safe_path(path)}")
     else:

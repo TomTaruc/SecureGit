@@ -47,7 +47,6 @@ def _sync_commit(project, commit_data: dict) -> Commit:
         parent_hash=commit_data.get("parent_hash"),
     )
     db.session.add(commit)
-    db.session.commit()
     return commit
 
 
@@ -63,6 +62,7 @@ def list_commits(username, project_name, project, current_user):
     author  = request.args.get("author")
     since   = request.args.get("since")
     until   = request.args.get("until")
+    query   = request.args.get("query")
     page    = int(request.args.get("page", 1))
     per_page= min(int(request.args.get("per_page", 30)), 100)
 
@@ -70,17 +70,18 @@ def list_commits(username, project_name, project, current_user):
     skip = (page - 1) * per_page
 
     try:
-        commits = git_service.git_log(repo_path, branch, author, since, until, skip, per_page)
-        total   = git_service.git_log_count(repo_path, branch)
+        commits = git_service.git_log(repo_path, branch, author, since, until, skip, per_page, query)
+        total   = git_service.git_log_count(repo_path, branch, query)
     except RuntimeError as e:
         return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
 
     # Async sync to DB (non-blocking)
-    for c in commits:
-        try:
+    try:
+        for c in commits:
             _sync_commit(project, c)
-        except Exception:
-            db.session.rollback()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     return jsonify({
         "commits":     commits,

@@ -5,6 +5,18 @@ import React, { useState } from 'react';
  * Accepts: fileDiffs = [{filename, changeType, linesAdded, linesDeleted, hunks}]
  */
 export default function DiffViewer({ fileDiffs = [] }) {
+  if (!Array.isArray(fileDiffs)) {
+    return (
+      <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-error-text)', fontSize: 'var(--font-size-sm)', background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)' }}>
+        <p style={{ fontWeight: '500', marginBottom: 'var(--space-2)' }}>Failed to parse diff</p>
+        <p style={{ color: 'var(--color-text-muted)' }}>The diff payload is malformed or could not be generated. This usually happens with very large commits or binary files.</p>
+        <pre style={{ marginTop: 'var(--space-4)', padding: 'var(--space-2)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-sm)', textAlign: 'left', overflowX: 'auto', fontSize: '11px', color: 'var(--color-text-muted)' }}>
+          {typeof fileDiffs === 'string' ? fileDiffs.slice(0, 500) + (fileDiffs.length > 500 ? '...' : '') : JSON.stringify(fileDiffs).slice(0, 500)}
+        </pre>
+      </div>
+    );
+  }
+
   if (!fileDiffs.length) {
     return (
       <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>

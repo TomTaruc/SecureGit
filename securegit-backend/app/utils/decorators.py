@@ -63,7 +63,7 @@ def require_project_access(permission: str = "read"):
             project = Project.query.filter_by(
                 owner_user_id=owner.user_id, project_name=project_name
             ).first()
-            if not project:
+            if not project or project.deleted_at is not None:
                 abort(404)
 
             if not check_permission(user, project, permission):

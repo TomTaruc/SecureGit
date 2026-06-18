@@ -26,8 +26,8 @@ apt-get update -q
 apt-get install -y --no-install-recommends \
     git nginx postgresql postgresql-contrib \
     python3 python3-pip python3-venv python3-dev \
-    nodejs npm dnsmasq openssl curl ufw \
-    libpq-dev build-essential
+    nodejs npm dnsmasq openssl ufw \
+    libpq-dev build-essential redis-server
 
 # Install NVM + Node LTS (optional, if apt nodejs is old)
 # curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
@@ -177,6 +177,7 @@ bash "$(dirname "$0")/setup-ssl.sh" "$SERVER_IP"
 # ---------------------------------------------------------------------------
 # 12. SSH configuration
 # ---------------------------------------------------------------------------
+chmod +x "$REPO_DIR/backend/scripts/git-shell-wrapper.py"
 cat "$(dirname "$0")/../ssh/sshd_config.additions" >> /etc/ssh/sshd_config
 sshd -t && systemctl restart sshd
 echo "SSH hardened."

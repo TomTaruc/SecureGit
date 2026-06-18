@@ -76,8 +76,16 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(webhooks_bp,  url_prefix="/api/webhooks")
 
     # ---------------------------------------------------------------------------
-    # JWT error handlers
+    # JWT error handlers & blocklist
     # ---------------------------------------------------------------------------
+    from .extensions import redis_client
+    
+    @jwt.token_in_blocklist_loader
+    def check_if_token_is_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        token_in_redis = redis_client.get(jti)
+        return token_in_redis is not None
+
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         return jsonify({"error": "token_expired", "message": "Token has expired.", "status": 401}), 401

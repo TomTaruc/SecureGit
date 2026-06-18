@@ -49,7 +49,7 @@ class ProductionConfig(BaseConfig):
         "DATABASE_URL",
         "postgresql://securegit_app:CHANGEME@localhost:5432/securegit_db"
     )
-    RATELIMIT_STORAGE_URL = os.environ.get("REDIS_URL", "memory://")
+    RATELIMIT_STORAGE_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
 
 class TestingConfig(BaseConfig):

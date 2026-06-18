@@ -40,8 +40,6 @@ class Collaborator(db.Model):
     permission           = db.Column(db.String(20), nullable=False, default="read")  # legacy simple level
     permissions          = db.Column(db.JSON, nullable=False, default=lambda: dict(DEFAULT_PERMISSIONS))
     granted_at           = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    fs_collab_project_id = db.Column(db.Integer, db.ForeignKey("projects.project_id"))
-    fs_collab_user_id    = db.Column(db.Integer, db.ForeignKey("users.user_id"))
 
     __table_args__ = (db.UniqueConstraint("project_id", "user_id"),)
 

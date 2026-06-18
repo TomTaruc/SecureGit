@@ -92,13 +92,33 @@ def raw(username, project_name, project, current_user):
         return jsonify({"error": "validation_error", "message": "path is required.", "status": 400}), 400
 
     repo_path = _get_repo_path(project)
+
+    from ..extensions import redis_client
+    cache_key = f"raw:{project.project_id}:{branch}:{filepath}"
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            mime, _ = mimetypes.guess_type(filepath)
+            res = Response(cached, mimetype=mime or "application/octet-stream")
+            res.headers["Cache-Control"] = "public, max-age=60"
+            return res, 200
+    except Exception:
+        pass
+
     try:
         content = git_service.git_show_file(repo_path, branch, filepath)
     except RuntimeError as e:
         return jsonify({"error": "not_found", "message": str(e), "status": 404}), 404
 
+    try:
+        redis_client.setex(cache_key, 60, content) # Cache for 60s to handle burst requests
+    except Exception:
+        pass
+
     mime, _ = mimetypes.guess_type(filepath)
-    return Response(content, mimetype=mime or "application/octet-stream"), 200
+    res = Response(content, mimetype=mime or "application/octet-stream")
+    res.headers["Cache-Control"] = "public, max-age=60"
+    return res, 200
 
 
 @repos_bp.get("/<username>/<project_name>/readme")

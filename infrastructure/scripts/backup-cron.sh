@@ -6,14 +6,20 @@
 set -euo pipefail
 
 FLASK_URL="http://127.0.0.1:5000"
-# Use a service token or admin credentials stored securely
-# For simplicity: call the internal backup API directly
 BACKUP_DEST="/mnt/backup"
+ENV_FILE="/opt/securegit/backend/.env"
+
+if [ -f "$ENV_FILE" ]; then
+    HOOK_SECRET=$(grep -E '^INTERNAL_HOOK_SECRET=' "$ENV_FILE" | cut -d '=' -f 2-)
+else
+    HOOK_SECRET=""
+fi
 
 # Trigger backup via Flask API (internal call)
 curl -s -f -X POST \
-    "$FLASK_URL/api/backups" \
+    "$FLASK_URL/internal/backup" \
     -H "Content-Type: application/json" \
+    -H "X-Hook-Secret: $HOOK_SECRET" \
     -d "{\"backup_type\": \"full\", \"destination\": \"$BACKUP_DEST\"}" \
     --max-time 30 \
     > /var/log/securegit/backup-cron.log 2>&1

@@ -49,6 +49,18 @@ def login():
 @jwt_required()
 def logout():
     user_id = get_jwt_identity()
+    from flask_jwt_extended import get_jwt
+    from datetime import datetime, timezone
+    
+    # Revoke access token
+    jti = get_jwt()["jti"]
+    exp = get_jwt()["exp"]
+    now = datetime.now(timezone.utc).timestamp()
+    ttl = max(int(exp - now), 10)
+    
+    from ..extensions import redis_client
+    redis_client.setex(jti, ttl, "true")
+
     audit_service.log(actor_id=user_id, action="auth.logout", target_type="user", target_id=user_id)
     response = jsonify({"message": "Logged out."})
     unset_jwt_cookies(response)

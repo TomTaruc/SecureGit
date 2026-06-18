@@ -32,7 +32,7 @@ export default function SSHKeysPage() {
     if (!title || !keyData) return;
     setAdding(true);
     try {
-      await sshKeysApi.addKey({ title, key_data: keyData });
+      await sshKeysApi.addKey({ title, public_key: keyData });
       toastSuccess('SSH key added');
       setTitle('');
       setKeyData('');

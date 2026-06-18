@@ -24,12 +24,24 @@ admin_bp = Blueprint("admin", __name__)
 @admin_bp.get("/users")
 @require_admin
 def list_users():
+    from sqlalchemy import func
     users = User.query.order_by(User.created_at.desc()).all()
+    
+    project_counts = dict(
+        db.session.query(Project.owner_user_id, func.count(Project.project_id))
+        .group_by(Project.owner_user_id).all()
+    )
+    
+    ssh_key_counts = dict(
+        db.session.query(SSHKey.user_id, func.count(SSHKey.key_id))
+        .group_by(SSHKey.user_id).all()
+    )
+
     result = []
     for u in users:
         d = u.to_dict()
-        d["project_count"]  = Project.query.filter_by(owner_user_id=u.user_id).count()
-        d["ssh_keys_count"] = SSHKey.query.filter_by(user_id=u.user_id).count()
+        d["project_count"]  = project_counts.get(u.user_id, 0)
+        d["ssh_keys_count"] = ssh_key_counts.get(u.user_id, 0)
         result.append(d)
     return jsonify(result), 200
 
@@ -122,7 +134,6 @@ def _check_service(service_name: str) -> str:
 def system_health():
     services = [
         {"name": "sshd",       "status": _check_service("sshd")},
-        {"name": "gitea",      "status": _check_service("gitea")},
         {"name": "postgresql", "status": _check_service("postgresql")},
         {"name": "nginx",      "status": _check_service("nginx")},
         {"name": "flask",      "status": "running"},  # If this runs, Flask is up

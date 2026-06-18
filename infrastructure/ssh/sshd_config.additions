@@ -17,10 +17,8 @@ PermitTunnel no
 GatewayPorts no
 PermitUserEnvironment no
 
-# Restrict git user to chroot jail
+# Restrict git user
 Match User git
-    ChrootDirectory /srv/git/%u
-    ForceCommand /usr/share/gitea/contrib/gitea-git-hook
     AllowTcpForwarding no
     X11Forwarding no
     PermitTTY no

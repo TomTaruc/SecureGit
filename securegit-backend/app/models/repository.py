@@ -7,7 +7,6 @@ class Repository(db.Model):
 
     repo_id         = db.Column(db.Integer, primary_key=True)
     project_id      = db.Column(db.Integer, db.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False)
-    repo_project_id = db.Column(db.Integer, db.ForeignKey("projects.project_id"), nullable=False)
     repo_path       = db.Column(db.String(255), nullable=False, unique=True)
     clone_url       = db.Column(db.String(255), nullable=False)
     is_initialized  = db.Column(db.Boolean, nullable=False, default=False)

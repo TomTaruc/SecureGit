@@ -23,12 +23,27 @@ _ALLOWED_HOSTS_RE = re.compile(
 )
 
 
+import socket
+import ipaddress
+
 def _is_internal_url(url: str) -> bool:
-    """Return True if the URL points to a LAN/localhost host."""
+    """Return True if the URL resolves strictly to a LAN/localhost IP."""
     try:
         parsed = urllib.parse.urlparse(url)
         host = parsed.hostname or ""
-        return bool(_ALLOWED_HOSTS_RE.match(host))
+        
+        # If it's literally a .local domain, we could let it pass
+        # but to be truly secure against rebinding we must resolve it.
+        # getaddrinfo resolves the hostname to IPs
+        addr_info = socket.getaddrinfo(host, None)
+        
+        for info in addr_info:
+            ip_str = info[4][0]
+            ip_obj = ipaddress.ip_address(ip_str)
+            # Must be a private, loopback, or link-local IP.
+            if not (ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local):
+                return False
+        return True
     except Exception:
         return False
 

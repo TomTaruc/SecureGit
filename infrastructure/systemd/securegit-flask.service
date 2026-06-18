@@ -12,7 +12,8 @@ Environment="FLASK_ENV=production"
 EnvironmentFile=/opt/securegit/backend/.env
 ExecStart=/opt/securegit/venv/bin/gunicorn \
     --workers 4 \
-    --worker-class sync \
+    --worker-class gthread \
+    --threads 10 \
     --bind 127.0.0.1:5000 \
     --timeout 60 \
     --access-logfile /var/log/securegit/access.log \
