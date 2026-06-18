@@ -36,3 +36,20 @@ class Project(db.Model):
             "created_at":     self.created_at.isoformat(),
         }
         return data
+
+from sqlalchemy import event
+from ..extensions import redis_client
+
+@event.listens_for(Project, 'after_update')
+def clear_project_cache_on_update(mapper, connection, target):
+    try:
+        redis_client.delete(f"project:{target.project_id}")
+    except Exception:
+        pass
+
+@event.listens_for(Project, 'after_delete')
+def clear_project_cache_on_delete(mapper, connection, target):
+    try:
+        redis_client.delete(f"project:{target.project_id}")
+    except Exception:
+        pass

@@ -27,12 +27,9 @@ def trigger_backup():
     backup_type = data.get("backup_type", "full")
     destination = data.get("destination", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
 
-    # Run backup in background thread so endpoint returns immediately
-    def _run():
-        backup_service.run_full_backup(destination, triggered_by=user_id)
-
-    t = threading.Thread(target=_run, daemon=True)
-    t.start()
+    # Run backup via Celery task
+    from ..tasks import run_full_backup_task
+    run_full_backup_task.delay(destination, user_id)
 
     return jsonify({"message": "Backup started.", "destination": destination}), 202
 
@@ -43,3 +40,20 @@ def list_files():
     dest = request.args.get("dest", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
     files = backup_service.list_backups(dest)
     return jsonify(files), 200
+
+
+@backups_bp.post("/restore")
+@require_admin
+def restore_backup():
+    data = request.get_json(silent=True) or {}
+    filename = data.get("filename")
+    dest = data.get("destination", os.environ.get("BACKUP_DEST_PATH", "/mnt/backup"))
+    
+    if not filename:
+        return jsonify({"error": "validation_error", "message": "filename is required.", "status": 422}), 422
+    
+    # Run restore via Celery task
+    from ..tasks import restore_backup_task
+    restore_backup_task.delay(filename, dest)
+
+    return jsonify({"message": f"Restore started for {filename}."}), 202

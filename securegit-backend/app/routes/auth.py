@@ -53,10 +53,14 @@ def logout():
     from datetime import datetime, timezone
     
     # Revoke access token
-    jti = get_jwt()["jti"]
-    exp = get_jwt()["exp"]
-    now = datetime.now(timezone.utc).timestamp()
-    ttl = max(int(exp - now), 10)
+    jwt_data = get_jwt()
+    jti = jwt_data["jti"]
+    exp = jwt_data.get("exp")
+    if exp:
+        now = datetime.now(timezone.utc).timestamp()
+        ttl = max(int(exp - now), 10)
+    else:
+        ttl = 30 * 24 * 3600 # 30 days default if no expiration
     
     from ..extensions import redis_client
     redis_client.setex(jti, ttl, "true")

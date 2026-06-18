@@ -138,13 +138,41 @@ def system_health():
         {"name": "nginx",      "status": _check_service("nginx")},
         {"name": "flask",      "status": "running"},  # If this runs, Flask is up
     ]
-    # DB connection check
-    try:
-        db.session.execute(db.text("SELECT 1"))
-        db_status = "connected"
-    except Exception:
-        db_status = "error"
+    import concurrent.futures
+    from ..extensions import redis_client
+
+    def check_db():
+        # Ensure we are using a fresh connection/session inside the thread if needed,
+        # but for SELECT 1 we can just use engine.
+        with db.engine.connect() as conn:
+            conn.execute(db.text("SELECT 1"))
+
+    def check_redis():
+        redis_client.ping()
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        # DB connection check
+        try:
+            future_db = executor.submit(check_db)
+            future_db.result(timeout=2.0)
+            db_status = "connected"
+        except concurrent.futures.TimeoutError:
+            db_status = "timeout"
+        except Exception:
+            db_status = "error"
+            
+        # Redis connection check
+        try:
+            future_redis = executor.submit(check_redis)
+            future_redis.result(timeout=2.0)
+            redis_status = "connected"
+        except concurrent.futures.TimeoutError:
+            redis_status = "timeout"
+        except Exception:
+            redis_status = "error"
+
     services.append({"name": "database", "status": db_status})
+    services.append({"name": "redis", "status": redis_status})
     return jsonify({"services": services}), 200
 
 

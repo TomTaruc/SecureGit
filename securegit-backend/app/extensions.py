@@ -18,4 +18,8 @@ cors = CORS()
 limiter = Limiter(key_func=get_remote_address)
 talisman = Talisman()
 
-redis_client = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+if os.environ.get("TESTING") == "1":
+    import fakeredis
+    redis_client = fakeredis.FakeRedis(decode_responses=True)
+else:
+    redis_client = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))

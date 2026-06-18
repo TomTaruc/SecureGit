@@ -142,11 +142,6 @@ def update_project(username, project_name, project, current_user):
     if "default_branch" in data:
         project.default_branch = data["default_branch"]
     db.session.commit()
-    from ..extensions import redis_client
-    try:
-        redis_client.delete(f"project:{project.project_id}")
-    except Exception:
-        pass
     audit_service.log(actor_id=current_user.user_id, action="project.update", target_type="project", target_id=project.project_id)
     return jsonify(project.to_dict()), 200
 
@@ -168,11 +163,6 @@ def delete_project(username, project_name, project, current_user):
     
     audit_service.log(actor_id=current_user.user_id, action="project.soft_delete", target_type="project", target_id=project.project_id, detail=project.project_name)
     db.session.commit()
-    from ..extensions import redis_client
-    try:
-        redis_client.delete(f"project:{project.project_id}")
-    except Exception:
-        pass
     return jsonify({"message": "Project deleted (soft delete)."}), 200
 
 
@@ -187,6 +177,15 @@ def list_collaborators(username, project_name, project, current_user):
     collabs = Collaborator.query.filter_by(project_id=project.project_id).all()
     return jsonify([c.to_dict() for c in collabs]), 200
 
+
+def _get_role_weight(permission: str) -> int:
+    return {"read": 10, "write": 20, "admin": 50, "owner": 100}.get(permission, 0)
+
+def _get_current_user_weight(project, current_user) -> int:
+    if current_user.user_id == project.owner_user_id:
+        return 100
+    collab = Collaborator.query.filter_by(project_id=project.project_id, user_id=current_user.user_id).first()
+    return _get_role_weight(collab.permission) if collab else 0
 
 @projects_bp.post("/<username>/<project_name>/collaborators")
 @jwt_required()
@@ -204,6 +203,12 @@ def add_collaborator(username, project_name, project, current_user):
 
     if Collaborator.query.filter_by(project_id=project.project_id, user_id=target_user_id).first():
         return jsonify({"error": "conflict", "message": "User is already a collaborator.", "status": 409}), 409
+
+    current_weight = _get_current_user_weight(project, current_user)
+    target_weight = _get_role_weight(permission_level)
+    
+    if current_weight < 100 and target_weight >= current_weight:
+        return jsonify({"error": "forbidden", "message": "Cannot grant a role equal to or higher than your own.", "status": 403}), 403
 
     permissions = custom_permissions if custom_permissions else PERMISSION_PRESETS.get(permission_level, PERMISSION_PRESETS["read"])
 
@@ -223,14 +228,35 @@ def add_collaborator(username, project_name, project, current_user):
 @jwt_required()
 @require_project_access("manage_collaborators")
 def update_collaborator(username, project_name, uid, project, current_user):
+    if uid == project.owner_user_id:
+        return jsonify({"error": "forbidden", "message": "Cannot modify project owner.", "status": 403}), 403
+    if uid == current_user.user_id:
+        return jsonify({"error": "forbidden", "message": "Cannot modify your own permissions.", "status": 403}), 403
+
     collab = Collaborator.query.filter_by(project_id=project.project_id, user_id=uid).first_or_404()
+    
+    current_weight = _get_current_user_weight(project, current_user)
+    target_collab_weight = _get_role_weight(collab.permission)
+
+    if current_weight < 100 and target_collab_weight >= current_weight:
+        return jsonify({"error": "forbidden", "message": "Cannot modify a user with equal or higher authority.", "status": 403}), 403
+
     data = request.get_json(silent=True) or {}
+    
     if "permission" in data:
-        level = data["permission"]
-        collab.permission = level
-        collab.permissions = PERMISSION_PRESETS.get(level, PERMISSION_PRESETS["read"])
+        new_level = data["permission"]
+        new_weight = _get_role_weight(new_level)
+        if current_weight < 100 and new_weight >= current_weight:
+            return jsonify({"error": "forbidden", "message": "Cannot grant a role equal to or higher than your own.", "status": 403}), 403
+        
+        collab.permission = new_level
+        collab.permissions = PERMISSION_PRESETS.get(new_level, PERMISSION_PRESETS["read"])
+        
     if "permissions" in data:
+        if current_weight < 100 and target_collab_weight >= current_weight:
+            return jsonify({"error": "forbidden", "message": "Cannot modify custom permissions of equal or higher authority.", "status": 403}), 403
         collab.permissions = data["permissions"]
+
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="collaborator.update", target_type="user", target_id=uid)
     return jsonify(collab.to_dict()), 200
@@ -240,7 +266,19 @@ def update_collaborator(username, project_name, uid, project, current_user):
 @jwt_required()
 @require_project_access("manage_collaborators")
 def remove_collaborator(username, project_name, uid, project, current_user):
+    if uid == project.owner_user_id:
+        return jsonify({"error": "forbidden", "message": "Cannot remove project owner.", "status": 403}), 403
+    if uid == current_user.user_id:
+        return jsonify({"error": "forbidden", "message": "Cannot remove yourself via this endpoint.", "status": 403}), 403
+
     collab = Collaborator.query.filter_by(project_id=project.project_id, user_id=uid).first_or_404()
+    
+    current_weight = _get_current_user_weight(project, current_user)
+    target_collab_weight = _get_role_weight(collab.permission)
+
+    if current_weight < 100 and target_collab_weight >= current_weight:
+        return jsonify({"error": "forbidden", "message": "Cannot remove a user with equal or higher authority.", "status": 403}), 403
+
     db.session.delete(collab)
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="collaborator.remove", target_type="user", target_id=uid)

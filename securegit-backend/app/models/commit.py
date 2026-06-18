@@ -19,6 +19,10 @@ class Commit(db.Model):
     author       = db.relationship("User",   foreign_keys=[author_id])
     commit_files = db.relationship("CommitFile", back_populates="commit", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        db.Index("idx_commit_branch_date", "branch_id", "committed_at"),
+    )
+
     def to_dict(self) -> dict:
         return {
             "commit_id":    self.commit_id,

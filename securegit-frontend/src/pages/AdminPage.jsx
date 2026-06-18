@@ -3,29 +3,88 @@ import PageShell from '../components/layout/PageShell';
 import { Skeleton } from '../components/ui/Spinner';
 import Badge from '../components/ui/Badge';
 import { TimeAgo } from '../components/shared/SharedComponents';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
+import useUIStore from '../store/uiStore';
 import * as adminApi from '../api/admin';
 
 export default function AdminPage() {
+  const toastSuccess = useUIStore(s => s.toastSuccess);
+  const toastError = useUIStore(s => s.toastError);
+  
   const [health, setHealth] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [gitMetrics, setGitMetrics] = useState(null);
   const [users, setUsers] = useState([]);
+  const [config, setConfig] = useState({});
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [backupFiles, setBackupFiles] = useState([]);
+  const [backupJobs, setBackupJobs] = useState([]);
+  const [triggeringBackup, setTriggeringBackup] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const fetchBackups = () => {
+    adminApi.listBackupFiles().then(res => setBackupFiles(res.data)).catch(() => {});
+    adminApi.listBackupJobs().then(res => setBackupJobs(res.data)).catch(() => {});
+  };
 
   useEffect(() => {
     Promise.all([
       adminApi.systemHealth().catch(() => ({ data: null })),
       adminApi.getMetrics().catch(() => ({ data: null })),
       adminApi.getGitMetrics().catch(() => ({ data: null })),
-      adminApi.adminListUsers().catch(() => ({ data: [] }))
-    ]).then(([h, m, gm, u]) => {
+      adminApi.adminListUsers().catch(() => ({ data: [] })),
+      adminApi.getConfig().catch(() => ({ data: [] }))
+    ]).then(([h, m, gm, u, c]) => {
       setHealth(h.data);
       setMetrics(m.data);
       setGitMetrics(gm.data);
       setUsers(u.data || []);
+      
+      const confMap = {};
+      if (c.data) c.data.forEach(item => confMap[item.key] = item.value);
+      setConfig(confMap);
+      
+      fetchBackups();
       setLoading(false);
     });
   }, []);
+
+  const handleConfigSave = async (e) => {
+    e.preventDefault();
+    setSavingConfig(true);
+    try {
+      await adminApi.updateConfig(config);
+      toastSuccess('Configuration saved');
+    } catch (err) {
+      toastError('Failed to save configuration');
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleTriggerBackup = async () => {
+    setTriggeringBackup(true);
+    try {
+      await adminApi.triggerBackup({});
+      toastSuccess('Backup started');
+      setTimeout(fetchBackups, 2000);
+    } catch (err) {
+      toastError('Failed to start backup');
+    } finally {
+      setTriggeringBackup(false);
+    }
+  };
+
+  const handleRestore = async (filename) => {
+    if (!window.confirm(`Are you sure you want to restore ${filename}? This may overwrite existing data.`)) return;
+    try {
+      await adminApi.adminRestore({ filename });
+      toastSuccess(`Restore started for ${filename}`);
+    } catch (err) {
+      toastError(err.response?.data?.message || 'Failed to start restore');
+    }
+  };
 
   return (
     <PageShell>
@@ -80,6 +139,68 @@ export default function AdminPage() {
               </div>
             ) : <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Git metrics not available.</div>}
           </div>
+        </div>
+
+        {/* Configuration */}
+        <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Global Configuration</h2>
+        <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
+          {loading ? <Skeleton height="150px" /> : (
+            <form onSubmit={handleConfigSave} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-6)', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '250px' }}>
+                  <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: '500', marginBottom: '4px' }}>Storage Quota (MB)</label>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-2)' }}>Default repository storage limit per user/project.</div>
+                  <Input 
+                    type="number" 
+                    value={config.storage_quota_mb || ''} 
+                    onChange={e => setConfig(prev => ({ ...prev, storage_quota_mb: e.target.value }))} 
+                  />
+                </div>
+                <div style={{ flex: 1, minWidth: '250px' }}>
+                  <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: '500', marginBottom: '4px' }}>Max File Size (MB)</label>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-2)' }}>Maximum file size allowed per push.</div>
+                  <Input 
+                    type="number" 
+                    value={config.max_file_size_mb || ''} 
+                    onChange={e => setConfig(prev => ({ ...prev, max_file_size_mb: e.target.value }))} 
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button type="submit" loading={savingConfig}>Save Configuration</Button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Backups */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-lg)', fontWeight: '600' }}>Backups & Restore</h2>
+          <Button onClick={handleTriggerBackup} loading={triggeringBackup}>Run Full Backup</Button>
+        </div>
+        <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>
+          {loading ? <Skeleton height="150px" /> : (
+            <>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '500', marginBottom: 'var(--space-3)' }}>Available Archives</h3>
+              {backupFiles.length === 0 ? (
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>No backup archives found in destination.</div>
+              ) : (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                  {backupFiles.map(f => (
+                    <li key={f.filename} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-3)', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-sm)' }}>
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--font-size-sm)' }}>{f.filename}</div>
+                        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                          {(f.size_bytes / 1024 / 1024).toFixed(2)} MB • Modified: {new Date(f.modified_at).toLocaleString()}
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleRestore(f.filename)}>Restore</Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
         </div>
 
         {/* Users */}

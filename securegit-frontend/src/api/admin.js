@@ -29,6 +29,7 @@ export const getGitMetrics    = ()           => client.get('/admin/metrics/git')
 export const listBackupJobs   = ()           => client.get('/backups');
 export const triggerBackup    = (data)       => client.post('/backups', data);
 export const listBackupFiles  = (dest)       => client.get('/backups/files', { params: { dest } });
+export const adminRestore     = (data)       => client.post('/backups/restore', data);
 
 // Merge
 export const compareBranches  = (u, p, params) => client.get(`/merge/${u}/${p}/compare`, { params });

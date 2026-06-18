@@ -22,6 +22,8 @@ import MergeTab from './pages/RepoView/MergeTab';
 import ProtectionTab from './pages/RepoView/ProtectionTab';
 import BlobViewer from './pages/RepoView/BlobViewer';
 
+import WebhooksTab from './pages/RepoView/WebhooksTab';
+
 // Settings Pages
 import SettingsLayout from './pages/Settings/SettingsLayout';
 import ProfileSettingsPage from './pages/Settings/ProfileSettingsPage';
@@ -85,6 +87,7 @@ export default function App() {
           <Route path="access" element={<AccessTab />} />
           <Route path="merge" element={<MergeTab />} />
           <Route path="protection" element={<ProtectionTab />} />
+          <Route path="webhooks" element={<WebhooksTab />} />
           <Route path="blob/*" element={<BlobViewer />} />
         </Route>
 

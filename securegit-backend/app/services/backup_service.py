@@ -129,3 +129,57 @@ def list_backups(dest_dir: str) -> list[dict]:
                 ).isoformat(),
             })
     return entries
+
+def restore_backup(filename: str, dest_dir: str) -> None:
+    """Restore a backup (DB or repos)."""
+    path = os.path.join(dest_dir, filename)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Backup file not found: {path}")
+
+    if filename.endswith(".tar.gz"):
+        logger.info(f"Restoring repository backup: {path}")
+        with tarfile.open(path, "r:gz") as tar:
+            # We assume it contains 'repos' at the root
+            def is_within_directory(directory, target):
+                abs_directory = os.path.abspath(directory)
+                abs_target = os.path.abspath(target)
+                prefix = os.path.commonprefix([abs_directory, abs_target])
+                return prefix == abs_directory
+            
+            def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                for member in tar.getmembers():
+                    member_path = os.path.join(path, member.name)
+                    if not is_within_directory(path, member_path):
+                        raise Exception("Attempted Path Traversal in Tar File")
+                tar.extractall(path, members, numeric_owner=numeric_owner)
+            
+            parent_dir = os.path.dirname(GIT_REPOS_BASE)
+            safe_extract(tar, path=parent_dir)
+        logger.info("Repository restore completed.")
+
+    elif filename.endswith(".sql.gz"):
+        logger.info(f"Restoring database backup: {path}")
+        import urllib.parse
+        import gzip
+        
+        parsed = urllib.parse.urlparse(DATABASE_URL)
+        env = os.environ.copy()
+        if parsed.password:
+            env["PGPASSWORD"] = parsed.password
+
+        cmd = ["pg_restore", "--clean", "--if-exists", "--no-owner", "--no-privileges", "--format=custom", "--dbname", DATABASE_URL]
+        
+        try:
+            with gzip.open(path, "rb") as f:
+                result = subprocess.run(
+                    cmd, input=f.read(), capture_output=True, shell=False, env=env, timeout=600
+                )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError("pg_restore timed out after 600 seconds")
+
+        if result.returncode != 0:
+            raise RuntimeError(f"pg_restore failed: {result.stderr.decode()}")
+        
+        logger.info("Database restore completed.")
+    else:
+        raise ValueError("Unsupported backup format")

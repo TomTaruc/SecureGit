@@ -34,6 +34,7 @@ export default function RepoLayout() {
     { label: 'Access',   to: `/${username}/${projectName}/access` },
     { label: 'Merge',    to: `/${username}/${projectName}/merge` },
     { label: 'Protection', to: `/${username}/${projectName}/protection` },
+    { label: 'Webhooks',   to: `/${username}/${projectName}/webhooks` },
   ];
 
   return (

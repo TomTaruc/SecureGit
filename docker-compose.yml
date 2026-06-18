@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: securegit_app
+      POSTGRES_PASSWORD: CHANGEME
+      POSTGRES_DB: securegit_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./securegit-backend
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://securegit_app:CHANGEME@db:5432/securegit_db
+      - REDIS_URL=redis://redis:6379/0
+      - GIT_REPOS_BASE=/srv/git
+      - BACKUP_DEST_PATH=/mnt/backup
+    volumes:
+      - gitdata:/srv/git
+      - backupdata:/mnt/backup
+    ports:
+      - "5000:5000"
+      - "2222:2222"
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery:
+    build:
+      context: ./securegit-backend
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://securegit_app:CHANGEME@db:5432/securegit_db
+      - REDIS_URL=redis://redis:6379/0
+      - GIT_REPOS_BASE=/srv/git
+      - BACKUP_DEST_PATH=/mnt/backup
+    volumes:
+      - gitdata:/srv/git
+      - backupdata:/mnt/backup
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./securegit-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  gitdata:
+  backupdata:
