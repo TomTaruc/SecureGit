@@ -27,8 +27,8 @@ class BaseConfig:
     INTERNAL_HOOK_SECRET = os.environ.get("INTERNAL_HOOK_SECRET", "hook-secret-change")
     BACKUP_DEST_PATH = os.environ.get("BACKUP_DEST_PATH", "/mnt/backup")
 
-    RATELIMIT_DEFAULT = "200 per day;50 per hour"
-    RATELIMIT_STORAGE_URL = "memory://"
+    RATELIMIT_DEFAULT = "5000 per hour"
+    RATELIMIT_STORAGE_URI = "memory://"
 
 
 class DevelopmentConfig(BaseConfig):
@@ -50,7 +50,8 @@ class ProductionConfig(BaseConfig):
         "DATABASE_URL",
         "postgresql://securegit_app:CHANGEME@localhost:5432/securegit_db"
     )
-    RATELIMIT_STORAGE_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    RATELIMIT_STORAGE_URI = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    JWT_COOKIE_SECURE = os.environ.get("SECURE_COOKIES", "false").lower() == "true"
 
 
 class TestingConfig(BaseConfig):

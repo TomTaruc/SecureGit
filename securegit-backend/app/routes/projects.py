@@ -91,13 +91,15 @@ def create_project():
     )
     db.session.add(repo)
 
-    jail = ChrootJail(
-        project_id=project.project_id,
-        user_id=user_id,
-        jail_path=chroot_service.jail_path_for(user.username),
-        fs_jail_user=user.username,
-    )
-    db.session.add(jail)
+    jail = ChrootJail.query.filter_by(user_id=user_id).first()
+    if not jail:
+        jail = ChrootJail(
+            user_id=user_id,
+            jail_path=chroot_service.jail_path_for(user.username),
+            fs_jail_user=user.username,
+        )
+        db.session.add(jail)
+        
     db.session.commit()
 
     chroot_service.provision_jail(user.username)

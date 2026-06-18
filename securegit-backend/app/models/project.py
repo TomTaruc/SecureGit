@@ -20,7 +20,6 @@ class Project(db.Model):
     owner           = db.relationship("User",         back_populates="projects", foreign_keys=[owner_user_id])
     repository      = db.relationship("Repository",   back_populates="project",  uselist=False, cascade="all, delete-orphan", foreign_keys="Repository.project_id")
     collaborators   = db.relationship("Collaborator", back_populates="project",  cascade="all, delete-orphan", foreign_keys="Collaborator.project_id")
-    chroot_jails    = db.relationship("ChrootJail",   back_populates="project",  cascade="all, delete-orphan")
     webhooks        = db.relationship("WebhookEndpoint", back_populates="project", cascade="all, delete-orphan")
 
     def to_dict(self, with_stats: bool = False) -> dict:

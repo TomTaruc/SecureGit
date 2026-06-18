@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS collaborators (
         "manage_collaborators": false,
         "manage_settings": false,
         "admin": false
-    },
+    }'::jsonb,
     granted_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(project_id, user_id)
 );

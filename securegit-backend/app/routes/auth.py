@@ -34,8 +34,8 @@ def login():
     user.last_login = datetime.now(timezone.utc)
     db.session.commit()
 
-    access_token  = create_access_token(identity=user.user_id)
-    refresh_token = create_refresh_token(identity=user.user_id)
+    access_token  = create_access_token(identity=str(user.user_id))
+    refresh_token = create_refresh_token(identity=str(user.user_id))
 
     audit_service.log(actor_id=user.user_id, action="auth.login", target_type="user", target_id=user.user_id)
 
@@ -43,6 +43,45 @@ def login():
     set_access_cookies(response, access_token)
     set_refresh_cookies(response, refresh_token)
     return response, 200
+
+
+@auth_bp.post("/register")
+@limiter.limit("5 per minute")
+def register():
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip()
+    email = (data.get("email") or "").strip()
+    password = data.get("password") or ""
+
+    if not username or not email or not password:
+        return jsonify({"error": "missing_fields", "message": "Username, email, and password are required.", "status": 400}), 400
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "duplicate_username", "message": "Username is already taken.", "status": 409}), 409
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "duplicate_email", "message": "Email is already registered.", "status": 409}), 409
+
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    new_user = User(
+        username=username,
+        email=email,
+        password_hash=hashed_password,
+        role="dev",
+        last_login=datetime.now(timezone.utc)
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    access_token  = create_access_token(identity=str(new_user.user_id))
+    refresh_token = create_refresh_token(identity=str(new_user.user_id))
+
+    audit_service.log(actor_id=new_user.user_id, action="auth.register", target_type="user", target_id=new_user.user_id)
+
+    response = jsonify({"user": new_user.to_dict(), "message": "Registration successful."})
+    set_access_cookies(response, access_token)
+    set_refresh_cookies(response, refresh_token)
+    return response, 201
 
 
 @auth_bp.post("/logout")
@@ -87,7 +126,7 @@ def logout():
 @jwt_required(refresh=True)
 def refresh():
     user_id = int(get_jwt_identity())
-    access_token = create_access_token(identity=user_id)
+    access_token = create_access_token(identity=str(user_id))
     response = jsonify({"message": "Token refreshed."})
     set_access_cookies(response, access_token)
     return response, 200

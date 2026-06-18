@@ -21,6 +21,18 @@ const useAuthStore = create(
         }
       },
 
+      register: async (credentials) => {
+        set({ isLoading: true });
+        try {
+          const res = await authApi.register(credentials);
+          set({ user: res.data.user, isAuthenticated: true, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          set({ isLoading: false });
+          return { success: false, error: err.response?.data?.message || 'Registration failed.' };
+        }
+      },
+
       logout: async () => {
         try { await authApi.logout(); } catch { /* ignore */ }
         set({ user: null, isAuthenticated: false });

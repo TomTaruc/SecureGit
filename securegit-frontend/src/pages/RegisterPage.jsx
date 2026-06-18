@@ -4,17 +4,25 @@ import useAuthStore from '../store/authStore';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError]       = useState('');
-  const { login, isLoading }    = useAuthStore();
+  const { register, isLoading } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const result = await login({ username, password });
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    const result = await register({ username, email, password });
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -34,7 +42,7 @@ export default function LoginPage() {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '380px',
+        maxWidth: '400px',
         background: 'var(--color-surface)',
         border: 'var(--border)',
         borderRadius: 'var(--radius-lg)',
@@ -55,17 +63,17 @@ export default function LoginPage() {
             SG
           </div>
           <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: '600', marginBottom: 'var(--space-1)' }}>
-            SecureGit
+            Create Account
           </h1>
           <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-            Self-hosted version control platform
+            Join the SecureGit platform
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Input
-            id="login-username"
+            id="register-username"
             label="Username"
             type="text"
             autoComplete="username"
@@ -74,12 +82,30 @@ export default function LoginPage() {
             required
           />
           <Input
-            id="login-password"
+            id="register-email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <Input
+            id="register-password"
             label="Password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <Input
+            id="register-confirm-password"
+            label="Confirm Password"
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
 
@@ -97,34 +123,24 @@ export default function LoginPage() {
           )}
 
           <Button type="submit" fullWidth loading={isLoading} style={{ marginTop: 'var(--space-2)' }}>
-            Sign in
+            Register
           </Button>
         </form>
 
-        {/* SSH hint */}
+        {/* Sign in link */}
         <p style={{
           marginTop: 'var(--space-5)',
-          textAlign: 'center',
-          fontSize: 'var(--font-size-xs)',
-          color: 'var(--color-text-muted)',
-        }}>
-          Secure SSH key authentication also available
-        </p>
-
-        {/* Sign up link */}
-        <p style={{
-          marginTop: 'var(--space-4)',
           textAlign: 'center',
           fontSize: 'var(--font-size-sm)',
           color: 'var(--color-text-muted)',
         }}>
-          Don't have an account?{' '}
+          Already have an account?{' '}
           <a
-            href="/register"
-            onClick={(e) => { e.preventDefault(); navigate('/register'); }}
+            href="/login"
+            onClick={(e) => { e.preventDefault(); navigate('/login'); }}
             style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '500' }}
           >
-            Create Account
+            Sign In
           </a>
         </p>
       </div>
