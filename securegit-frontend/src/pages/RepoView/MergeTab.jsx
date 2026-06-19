@@ -6,13 +6,13 @@ import { Skeleton } from '../../components/ui/Spinner';
 import DiffViewer from '../../components/code/DiffViewer';
 import useUIStore from '../../store/uiStore';
 import * as adminApi from '../../api/admin';
-
 import * as branchesApi from '../../api/branches';
+import ErrorBoundary from '../../components/shared/ErrorBoundary';
 
-export default function MergeTab() {
+function MergeTabContent() {
   const { username, projectName, project } = useOutletContext();
   const [branches, setBranches] = useState([]);
-  const [base, setBase] = useState(project.default_branch || 'main');
+  const [base, setBase] = useState(project?.default_branch || 'main');
   const [head, setHead] = useState('');
   const [compareData, setCompareData] = useState(null);
   const [conflicts, setConflicts] = useState(null);
@@ -33,10 +33,13 @@ export default function MergeTab() {
         adminApi.compareBranches(username, projectName, { base, head }),
         adminApi.checkConflicts(username, projectName, { base, head })
       ]);
-      setCompareData(compRes.data);
-      setConflicts(confRes.data);
+      setCompareData(compRes?.data || null);
+      setConflicts(confRes?.data || null);
     } catch (err) {
-      toastError('Failed to compare branches');
+      console.error("Compare error:", err);
+      toastError(err?.response?.data?.message || 'Failed to compare branches');
+      setCompareData({}); // Fallback empty object to prevent null crashes
+      setConflicts({});
     } finally {
       setLoading(false);
     }
@@ -46,8 +49,11 @@ export default function MergeTab() {
 
   useEffect(() => {
     branchesApi.listBranches(username, projectName)
-      .then(res => setBranches(res.data || []))
-      .catch(console.error);
+      .then(res => setBranches(res?.data || []))
+      .catch(err => {
+        console.error(err);
+        setBranches([]);
+      });
   }, [username, projectName]);
 
   const handleMerge = async () => {
@@ -60,11 +66,19 @@ export default function MergeTab() {
       setCompareData(null);
       setConflicts(null);
     } catch (err) {
-      toastError(err.response?.data?.message || err.response?.data?.error || 'Merge failed');
+      toastError(err?.response?.data?.message || err?.response?.data?.error || 'Merge failed');
     } finally {
       setMerging(false);
     }
   };
+
+  // Safe data access
+  const safeBranches = Array.isArray(branches) ? branches : [];
+  const safeCompareData = compareData || {};
+  const commits = Array.isArray(safeCompareData.commits) ? safeCompareData.commits : [];
+  const diffs = Array.isArray(safeCompareData.diff) ? safeCompareData.diff : [];
+  const hasConflicts = Boolean(conflicts?.has_conflicts);
+  const conflictList = Array.isArray(conflicts?.conflicts) ? conflicts.conflicts : [];
 
   return (
     <div>
@@ -76,7 +90,7 @@ export default function MergeTab() {
               value={base} onChange={e => setBase(e.target.value)}
               style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
             >
-              {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+              {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
             </select>
           </div>
           <span style={{ marginTop: '20px', color: 'var(--color-text-muted)' }}>←</span>
@@ -87,7 +101,7 @@ export default function MergeTab() {
               style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
             >
               <option value="">Select branch...</option>
-              {branches.map(b => <option key={b.name} value={b.name}>{b.name}</option>)}
+              {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
             </select>
           </div>
         </div>
@@ -100,12 +114,12 @@ export default function MergeTab() {
           {/* Status Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-5)' }}>
             <div>
-              {conflicts?.has_conflicts ? (
+              {hasConflicts ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Badge variant="error">✕ Conflicts Detected</Badge>
                   <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Cannot merge automatically.</span>
                 </div>
-              ) : compareData.commits.length === 0 ? (
+              ) : commits.length === 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Badge variant="info">✓ Up to date</Badge>
                   <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>There are no commits to merge.</span>
@@ -118,7 +132,7 @@ export default function MergeTab() {
               )}
             </div>
 
-            {compareData.commits.length > 0 && !conflicts?.has_conflicts && (
+            {commits.length > 0 && !hasConflicts && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                 <select
                   value={strategy} onChange={e => setStrategy(e.target.value)}
@@ -136,17 +150,17 @@ export default function MergeTab() {
           </div>
 
           {/* Commits List */}
-          {compareData.commits.length > 0 && (
+          {commits.length > 0 && (
             <div style={{ marginBottom: 'var(--space-6)' }}>
-              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Commits ({compareData.commits.length})</h3>
+              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Commits ({commits.length})</h3>
               <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                {compareData.commits.map((c, i) => (
-                  <div key={c.hash} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < compareData.commits.length - 1 ? 'var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {commits.map((c, i) => (
+                  <div key={c?.hash || i} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < commits.length - 1 ? 'var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '500', color: 'var(--color-text-primary)' }}>{c.message}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c.author} · {c.date}</div>
+                      <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '500', color: 'var(--color-text-primary)' }}>{c?.message || 'No commit message'}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.author || 'Unknown'} · {c?.date || ''}</div>
                     </div>
-                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c.short_hash}</code>
+                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.short_hash || ''}</code>
                   </div>
                 ))}
               </div>
@@ -154,16 +168,16 @@ export default function MergeTab() {
           )}
 
           {/* Conflict List */}
-          {conflicts?.has_conflicts && (
+          {hasConflicts && conflictList.length > 0 && (
             <div style={{ marginBottom: 'var(--space-6)' }}>
               <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Conflicting Files</h3>
               <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-error)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                {conflicts.conflicts.map((c, i) => (
-                  <div key={i} style={{ borderBottom: i < conflicts.conflicts.length - 1 ? 'var(--border)' : 'none' }}>
+                {conflictList.map((c, i) => (
+                  <div key={i} style={{ borderBottom: i < conflictList.length - 1 ? 'var(--border)' : 'none' }}>
                     <div style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)', fontWeight: '500' }}>
-                      {c.file}
+                      {c?.file || 'Unknown file'}
                     </div>
-                    {c.content && (
+                    {c?.content && (
                       <pre style={{ margin: 0, padding: 'var(--space-3) var(--space-5)', background: 'var(--color-surface-2)', borderTop: 'var(--border)', fontSize: '11px', color: 'var(--color-text-muted)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
                         {c.content}
                       </pre>
@@ -175,14 +189,22 @@ export default function MergeTab() {
           )}
 
           {/* Diff */}
-          {compareData.diff && compareData.diff.length > 0 && (
+          {diffs.length > 0 && (
             <div>
               <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Changes</h3>
-              <DiffViewer fileDiffs={compareData.diff} />
+              <DiffViewer fileDiffs={diffs} />
             </div>
           )}
         </div>
       )}
     </div>
+  );
+}
+
+export default function MergeTab() {
+  return (
+    <ErrorBoundary>
+      <MergeTabContent />
+    </ErrorBoundary>
   );
 }

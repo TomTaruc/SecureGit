@@ -80,7 +80,9 @@ export default function RepoLayout() {
         </div>
 
         {/* Branch selector (passed via context to children) */}
-        <Outlet context={{ project, branches, branch, setBranch, username, projectName }} />
+        {!loading && (
+          <Outlet context={{ project, branches, branch, setBranch, username, projectName }} />
+        )}
       </div>
     </PageShell>
   );

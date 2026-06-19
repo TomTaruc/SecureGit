@@ -73,10 +73,17 @@ def create_project():
 
     # Initialize bare git repo
     try:
+        import pwd
+        git_pwd = pwd.getpwnam("git")
+        
+        parent_dir = os.path.dirname(repo_path)
+        os.makedirs(parent_dir, exist_ok=True)
+        os.chown(parent_dir, git_pwd.pw_uid, git_pwd.pw_gid)
+        
+        os.makedirs(repo_path, exist_ok=True)
+        os.chown(repo_path, git_pwd.pw_uid, git_pwd.pw_gid)
+
         git_service.git_init_bare(repo_path)
-        # Ensure the git system user owns the repository so SSH pushes succeed
-        import subprocess
-        subprocess.run(["chown", "-R", "git:git", repo_path], check=False)
     except Exception as e:
         return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
 

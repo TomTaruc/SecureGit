@@ -46,6 +46,8 @@ def _run(repo_path: str, *args, timeout: int = 30) -> str:
         text=True,
         timeout=timeout,
         shell=False,
+        user="git",
+        group="git",
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or f"git {args[0]} failed")
@@ -64,11 +66,16 @@ def git_init_bare(path: str) -> None:
         capture_output=True,
         text=True,
         shell=False,
+        user="git",
+        group="git",
     )
     
     # Install hooks
     hooks_dir = os.path.join(path, "hooks")
     os.makedirs(hooks_dir, exist_ok=True)
+    import pwd
+    git_pwd = pwd.getpwnam("git")
+    os.chown(hooks_dir, git_pwd.pw_uid, git_pwd.pw_gid)
     
     pre_receive_path = os.path.join(hooks_dir, "pre-receive")
     with open(pre_receive_path, "w") as f:
@@ -87,6 +94,7 @@ def git_init_bare(path: str) -> None:
         f.write("done\n")
         f.write("exit 0\n")
     os.chmod(pre_receive_path, 0o755)
+    os.chown(pre_receive_path, git_pwd.pw_uid, git_pwd.pw_gid)
     
     post_receive_path = os.path.join(hooks_dir, "post-receive")
     with open(post_receive_path, "w") as f:
@@ -98,6 +106,7 @@ def git_init_bare(path: str) -> None:
         f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\"}\" > /dev/null\n")
         f.write("done\n")
     os.chmod(post_receive_path, 0o755)
+    os.chown(post_receive_path, git_pwd.pw_uid, git_pwd.pw_gid)
 
 
 def git_count_objects(repo_path: str) -> dict:
@@ -382,6 +391,8 @@ def git_show_file(repo_path: str, ref: str, filepath: str) -> bytes:
         capture_output=True,
         timeout=30,
         shell=False,
+        user="git",
+        group="git",
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.decode().strip())
@@ -474,5 +485,7 @@ def git_is_ancestor(repo_path: str, ancestor: str, descendant: str) -> bool:
         cwd=repo_path,
         capture_output=True,
         shell=False,
+        user="git",
+        group="git",
     )
     return result.returncode == 0

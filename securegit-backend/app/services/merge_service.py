@@ -72,15 +72,18 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(base)],
             cwd=repo_path, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         result = subprocess.run(
             ["git", "merge", "--no-commit", "--no-ff", _safe_ref(head)],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
+            user="git", group="git"
         )
         if result.returncode != 0:
             status = subprocess.run(
                 ["git", "diff", "--name-only", "--diff-filter=U"],
                 cwd=tmp_dir, capture_output=True, text=True, shell=False,
+                user="git", group="git"
             )
             for fname in status.stdout.splitlines():
                 fname = fname.strip()
@@ -96,6 +99,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=tmp_dir, capture_output=True, shell=False,
+            user="git", group="git"
         )
     except Exception as e:
         logger.error("Conflict detection failed: %s", e)
@@ -103,6 +107,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
         subprocess.run(
             ["git", "worktree", "remove", "--force", tmp_dir],
             cwd=repo_path, capture_output=True, shell=False,
+            user="git", group="git"
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
     return conflicts
@@ -121,10 +126,12 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
             cwd=repo_path, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         result = subprocess.run(
             ["git", "merge", "--ff-only", _safe_ref(source)],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
+            user="git", group="git"
         )
         if result.returncode != 0:
             return {"success": False, "error": result.stderr.strip()}
@@ -132,6 +139,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         return {"success": True, "strategy": "fast-forward"}
     except Exception as e:
@@ -140,6 +148,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         subprocess.run(
             ["git", "worktree", "remove", "--force", tmp_dir],
             cwd=repo_path, capture_output=True, shell=False,
+            user="git", group="git"
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -151,20 +160,24 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
             cwd=repo_path, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         result = subprocess.run(
             ["git", "merge", "--squash", _safe_ref(source)],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
+            user="git", group="git"
         )
         if result.returncode != 0:
             return {"success": False, "error": result.stderr.strip()}
         subprocess.run(
             ["git", "commit", "-m", message],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         return {"success": True, "strategy": "squash"}
     except Exception as e:
@@ -173,6 +186,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
         subprocess.run(
             ["git", "worktree", "remove", "--force", tmp_dir],
             cwd=repo_path, capture_output=True, shell=False,
+            user="git", group="git"
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -184,24 +198,29 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(source)],
             cwd=repo_path, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         result = subprocess.run(
             ["git", "rebase", _safe_ref(target)],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
+            user="git", group="git"
         )
         if result.returncode != 0:
             return {"success": False, "error": result.stderr.strip() or "Rebase conflict detected."}
         subprocess.run(
             ["git", "checkout", _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         subprocess.run(
             ["git", "merge", "--ff-only", _safe_ref(source)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
+            user="git", group="git"
         )
         return {"success": True, "strategy": "rebase"}
     except Exception as e:
@@ -210,5 +229,6 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
         subprocess.run(
             ["git", "worktree", "remove", "--force", tmp_dir],
             cwd=repo_path, capture_output=True, shell=False,
+            user="git", group="git"
         )
         shutil.rmtree(tmp_dir, ignore_errors=True)
