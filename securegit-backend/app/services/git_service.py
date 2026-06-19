@@ -149,6 +149,11 @@ def git_default_branch(repo_path: str) -> str:
         return "main"
 
 
+def git_set_default_branch(repo_path: str, branch_name: str) -> None:
+    """Set the HEAD reference to the specified branch."""
+    _run(repo_path, "symbolic-ref", "HEAD", f"refs/heads/{_safe_ref(branch_name)}")
+
+
 # ---------------------------------------------------------------------------
 # Commit log
 # ---------------------------------------------------------------------------
@@ -383,12 +388,57 @@ def git_show_file(repo_path: str, ref: str, filepath: str) -> bytes:
     return result.stdout
 
 
+def decode_file_content(raw: bytes) -> tuple[Optional[str], bool]:
+    """Decodes raw bytes into a string, returning (text, is_binary)."""
+    if not raw:
+        return "", False
+
+    if raw.startswith(b'\xff\xfe'):
+        try:
+            return raw[2:].decode('utf-16le'), False
+        except UnicodeDecodeError:
+            pass
+    elif raw.startswith(b'\xfe\xff'):
+        try:
+            return raw[2:].decode('utf-16be'), False
+        except UnicodeDecodeError:
+            pass
+    elif raw.startswith(b'\xef\xbb\xbf'):
+        try:
+            return raw[3:].decode('utf-8'), False
+        except UnicodeDecodeError:
+            pass
+
+    try:
+        text = raw.decode('utf-8')
+        if '\x00' in text:
+            return None, True
+        return text, False
+    except UnicodeDecodeError:
+        pass
+
+    import charset_normalizer
+    match = charset_normalizer.from_bytes(raw).best()
+    if match and match.encoding:
+        try:
+            text = str(match)
+            if '\x00' in text:
+                return None, True
+            return text, False
+        except Exception:
+            pass
+
+    return None, True
+
+
 def git_readme(repo_path: str, ref: str) -> Optional[str]:
     """Try to find and return README content."""
     for name in ("README.md", "README.txt", "README.rst", "README"):
         try:
-            content = git_show_file(repo_path, ref, name)
-            return content.decode("utf-8", errors="replace")
+            raw = git_show_file(repo_path, ref, name)
+            text, is_binary = decode_file_content(raw)
+            if not is_binary and text is not None:
+                return text
         except RuntimeError:
             continue
     return None

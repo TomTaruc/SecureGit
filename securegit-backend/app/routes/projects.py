@@ -150,6 +150,11 @@ def update_project(username, project_name, project, current_user):
         project.visibility = data["visibility"]
     if "default_branch" in data:
         project.default_branch = data["default_branch"]
+        if project.repository:
+            try:
+                git_service.git_set_default_branch(project.repository.repo_path, data["default_branch"])
+            except Exception:
+                pass
     project.updated_at = datetime.now(timezone.utc)
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="project.update", target_type="project", target_id=project.project_id)

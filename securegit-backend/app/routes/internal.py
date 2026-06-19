@@ -101,15 +101,24 @@ def post_receive():
     repo.project.updated_at = datetime.now(timezone.utc)
 
     # Ensure branch record exists
+    is_first_branch = Branch.query.filter_by(repo_id=repo.repo_id).count() == 0
     branch = Branch.query.filter_by(repo_id=repo.repo_id, branch_name=branch_name).first()
     if not branch:
+        is_default = is_first_branch or (branch_name == project.default_branch)
         branch = Branch(
             repo_id=repo.repo_id,
             branch_name=branch_name,
-            is_default=(branch_name == project.default_branch),
+            is_default=is_default,
         )
         db.session.add(branch)
         db.session.flush()
+
+        if is_first_branch:
+            project.default_branch = branch_name
+            try:
+                git_service.git_set_default_branch(repo_path, branch_name)
+            except Exception:
+                pass
 
     # Sync new commits
     try:

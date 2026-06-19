@@ -7,8 +7,11 @@ import DiffViewer from '../../components/code/DiffViewer';
 import useUIStore from '../../store/uiStore';
 import * as adminApi from '../../api/admin';
 
+import * as branchesApi from '../../api/branches';
+
 export default function MergeTab() {
-  const { username, projectName, branches, project } = useOutletContext();
+  const { username, projectName, project } = useOutletContext();
+  const [branches, setBranches] = useState([]);
   const [base, setBase] = useState(project.default_branch || 'main');
   const [head, setHead] = useState('');
   const [compareData, setCompareData] = useState(null);
@@ -40,6 +43,12 @@ export default function MergeTab() {
   };
 
   useEffect(() => { runCompare(); }, [base, head]);
+
+  useEffect(() => {
+    branchesApi.listBranches(username, projectName)
+      .then(res => setBranches(res.data || []))
+      .catch(console.error);
+  }, [username, projectName]);
 
   const handleMerge = async () => {
     if (!window.confirm(`Merge ${head} into ${base} using ${strategy} strategy?`)) return;

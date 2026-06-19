@@ -46,12 +46,7 @@ def blob(username, project_name, project, current_user):
         return jsonify({"error": "not_found", "message": str(e), "status": 404}), 404
 
     # Detect if binary
-    try:
-        content_text = raw.decode("utf-8")
-        is_binary = False
-    except UnicodeDecodeError:
-        content_text = None
-        is_binary = True
+    content_text, is_binary = git_service.decode_file_content(raw)
 
     # Guess language from extension
     _, ext = filepath.rsplit(".", 1) if "." in filepath else (filepath, "")
