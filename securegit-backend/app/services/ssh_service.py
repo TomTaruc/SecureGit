@@ -8,6 +8,7 @@ import re
 import subprocess
 import tempfile
 import logging
+import platform
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ FINGERPRINT_RE = re.compile(r'SHA256:[A-Za-z0-9+/=]+')
 def _build_authorized_line(user_id: int, public_key: str, fingerprint: str) -> str:
     """Build a restricted authorized_keys entry for a user."""
     # The python wrapper needs to be executed
-    hook = "/opt/securegit/backend/venv/bin/python3 /opt/securegit/backend/scripts/git-shell-wrapper.py"
+    hook = "/usr/local/bin/python3 /app/scripts/git-shell-wrapper.py"
     return (
         f'command="{hook} {user_id}",{KEY_RESTRICTIONS} '
         f'{public_key.strip()} '
@@ -52,7 +53,20 @@ def _write_keys_atomic(lines: list[str]) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.writelines(lines)
         os.chmod(tmp_path, 0o600)
-        os.rename(tmp_path, AUTHORIZED_KEYS_PATH)
+
+        # Chown to git:git so sshd doesn't reject it due to StrictModes
+        try:
+            import pwd
+            import shutil
+            git_pwd = pwd.getpwnam("git")
+            os.chown(tmp_path, git_pwd.pw_uid, git_pwd.pw_gid)
+        except (KeyError, ImportError):
+            pass # Ignore if git user not found (e.g. during local Windows testing)
+
+        if platform.system() == "Windows":
+            shutil.move(tmp_path, AUTHORIZED_KEYS_PATH)
+        else:
+            os.rename(tmp_path, AUTHORIZED_KEYS_PATH)
     except Exception:
         try:
             os.unlink(tmp_path)

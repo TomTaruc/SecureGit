@@ -23,7 +23,12 @@ def create_app(config_name: str | None = None) -> Flask:
 
     cors.init_app(
         app,
-        resources={r"/api/*": {"origins": ["https://securegit.local", "http://localhost:5173"]}},
+        resources={r"/api/*": {"origins": [
+            "https://securegit.local",
+            "http://localhost:5173",
+            "http://localhost",
+            "http://localhost:80",
+        ]}},
         supports_credentials=True,
     )
 

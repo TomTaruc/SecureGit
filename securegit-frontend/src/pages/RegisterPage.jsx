@@ -10,19 +10,47 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError]       = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const { register, isLoading } = useAuthStore();
   const navigate = useNavigate();
+
+  const validate = () => {
+    const errs = {};
+    if (!username.trim()) {
+      errs.username = 'Username is required.';
+    } else if (username.trim().length < 3) {
+      errs.username = 'Username must be at least 3 characters.';
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(username.trim())) {
+      errs.username = 'Letters, numbers, hyphens, and underscores only.';
+    }
+    if (!email.trim()) {
+      errs.email = 'Email is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Please enter a valid email address.';
+    }
+    if (!password) {
+      errs.password = 'Password is required.';
+    } else if (password.length < 8) {
+      errs.password = 'Password must be at least 8 characters.';
+    }
+    if (password !== confirmPassword) {
+      errs.confirmPassword = 'Passwords do not match.';
+    }
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setFieldErrors({});
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
 
-    const result = await register({ username, email, password });
+    const result = await register({ username: username.trim(), email: email.trim().toLowerCase(), password });
     if (result.success) {
       navigate('/dashboard');
     } else {
@@ -79,6 +107,8 @@ export default function RegisterPage() {
             autoComplete="username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            error={fieldErrors.username}
+            hint="3–50 characters: letters, numbers, hyphens, underscores"
             required
           />
           <Input
@@ -88,6 +118,7 @@ export default function RegisterPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            error={fieldErrors.email}
             required
           />
           <Input
@@ -97,6 +128,8 @@ export default function RegisterPage() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            error={fieldErrors.password}
+            hint="Minimum 8 characters"
             required
           />
           <Input
@@ -106,6 +139,7 @@ export default function RegisterPage() {
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            error={fieldErrors.confirmPassword}
             required
           />
 

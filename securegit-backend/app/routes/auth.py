@@ -1,4 +1,6 @@
 """Authentication routes — /api/auth/*"""
+import logging
+import re
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import (
@@ -7,37 +9,52 @@ from flask_jwt_extended import (
     set_access_cookies, set_refresh_cookies,
     unset_jwt_cookies,
 )
+from sqlalchemy import or_
 from ..extensions import db, bcrypt, limiter
 from ..models.user import User
 from ..services import audit_service
 
+logger = logging.getLogger(__name__)
+
 auth_bp = Blueprint("auth", __name__)
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 @auth_bp.post("/login")
-@limiter.limit("5 per minute")
+@limiter.limit("20 per minute")
 def login():
     data = request.get_json(silent=True) or {}
-    username = (data.get("username") or "").strip()
+    identifier = (data.get("username") or "").strip()
     password = data.get("password") or ""
 
-    if not username or not password:
-        return jsonify({"error": "missing_credentials", "message": "Username and password are required.", "status": 400}), 400
+    if not identifier or not password:
+        return jsonify({"error": "missing_credentials", "message": "Username/email and password are required.", "status": 400}), 400
 
-    user = User.query.filter_by(username=username).first()
+    try:
+        user = User.query.filter(
+            or_(User.username == identifier, User.email == identifier)
+        ).first()
+    except Exception:
+        logger.exception("Database error during login lookup")
+        return jsonify({"error": "internal_error", "message": "An unexpected error occurred. Please try again.", "status": 500}), 500
+
     if not user or not bcrypt.check_password_hash(user.password_hash, password):
         return jsonify({"error": "invalid_credentials", "message": "Invalid username or password.", "status": 401}), 401
 
     if user.is_suspended:
         return jsonify({"error": "account_suspended", "message": "Your account has been suspended.", "status": 403}), 403
 
-    user.last_login = datetime.now(timezone.utc)
-    db.session.commit()
+    try:
+        user.last_login = datetime.now(timezone.utc)
+        audit_service.log(actor_id=user.user_id, action="auth.login", target_type="user", target_id=user.user_id)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Database error during login commit")
 
     access_token  = create_access_token(identity=str(user.user_id))
     refresh_token = create_refresh_token(identity=str(user.user_id))
-
-    audit_service.log(actor_id=user.user_id, action="auth.login", target_type="user", target_id=user.user_id)
 
     response = jsonify({"user": user.to_dict(), "message": "Login successful."})
     set_access_cookies(response, access_token)
@@ -46,37 +63,70 @@ def login():
 
 
 @auth_bp.post("/register")
-@limiter.limit("5 per minute")
+@limiter.limit("10 per minute")
 def register():
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
-    email = (data.get("email") or "").strip()
+    email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
 
-    if not username or not email or not password:
-        return jsonify({"error": "missing_fields", "message": "Username, email, and password are required.", "status": 400}), 400
+    # --- Validation ---
+    errors = []
+    if not username:
+        errors.append("Username is required.")
+    elif len(username) < 3:
+        errors.append("Username must be at least 3 characters.")
+    elif len(username) > 50:
+        errors.append("Username must be 50 characters or fewer.")
+    elif not re.match(r"^[a-zA-Z0-9_-]+$", username):
+        errors.append("Username may only contain letters, numbers, hyphens, and underscores.")
 
-    if User.query.filter_by(username=username).first():
-        return jsonify({"error": "duplicate_username", "message": "Username is already taken.", "status": 409}), 409
+    if not email:
+        errors.append("Email is required.")
+    elif not EMAIL_RE.match(email):
+        errors.append("Please enter a valid email address.")
 
-    if User.query.filter_by(email=email).first():
-        return jsonify({"error": "duplicate_email", "message": "Email is already registered.", "status": 409}), 409
+    if not password:
+        errors.append("Password is required.")
+    elif len(password) < 8:
+        errors.append("Password must be at least 8 characters.")
 
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    new_user = User(
-        username=username,
-        email=email,
-        password_hash=hashed_password,
-        role="dev",
-        last_login=datetime.now(timezone.utc)
-    )
-    db.session.add(new_user)
-    db.session.commit()
+    if errors:
+        return jsonify({"error": "validation_error", "message": errors[0], "errors": errors, "status": 400}), 400
+
+    # --- Duplicate checks ---
+    try:
+        if User.query.filter_by(username=username).first():
+            return jsonify({"error": "duplicate_username", "message": "Username is already taken.", "status": 409}), 409
+
+        if User.query.filter_by(email=email).first():
+            return jsonify({"error": "duplicate_email", "message": "Email is already registered.", "status": 409}), 409
+    except Exception:
+        logger.exception("Database error during duplicate check")
+        return jsonify({"error": "internal_error", "message": "An unexpected error occurred. Please try again.", "status": 500}), 500
+
+    # --- Create user ---
+    try:
+        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+        new_user = User(
+            username=username,
+            email=email,
+            password_hash=hashed_password,
+            role="dev",
+            last_login=datetime.now(timezone.utc)
+        )
+        db.session.add(new_user)
+        db.session.flush()  # Assign user_id for audit log
+
+        audit_service.log(actor_id=new_user.user_id, action="auth.register", target_type="user", target_id=new_user.user_id)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Database error during registration")
+        return jsonify({"error": "internal_error", "message": "An unexpected error occurred. Please try again.", "status": 500}), 500
 
     access_token  = create_access_token(identity=str(new_user.user_id))
     refresh_token = create_refresh_token(identity=str(new_user.user_id))
-
-    audit_service.log(actor_id=new_user.user_id, action="auth.register", target_type="user", target_id=new_user.user_id)
 
     response = jsonify({"user": new_user.to_dict(), "message": "Registration successful."})
     set_access_cookies(response, access_token)

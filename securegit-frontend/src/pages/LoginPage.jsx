@@ -66,7 +66,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <Input
             id="login-username"
-            label="Username"
+            label="Username or Email"
             type="text"
             autoComplete="username"
             value={username}

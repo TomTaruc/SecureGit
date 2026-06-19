@@ -24,6 +24,11 @@ services:
       - FLASK_ENV=production
       - DATABASE_URL=postgresql://securegit_app:CHANGEME@db:5432/securegit_db
       - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=securegit-secret-change-in-production
+      - JWT_SECRET_KEY=securegit-jwt-secret-change-in-production
+      - SECURE_COOKIES=false
+      - INTERNAL_DOMAIN=localhost
+      - SSH_PORT=2222
       - GIT_REPOS_BASE=/srv/git
       - BACKUP_DEST_PATH=/mnt/backup
     volumes:
@@ -45,6 +50,8 @@ services:
       - FLASK_ENV=production
       - DATABASE_URL=postgresql://securegit_app:CHANGEME@db:5432/securegit_db
       - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=securegit-secret-change-in-production
+      - JWT_SECRET_KEY=securegit-jwt-secret-change-in-production
       - GIT_REPOS_BASE=/srv/git
       - BACKUP_DEST_PATH=/mnt/backup
     volumes:

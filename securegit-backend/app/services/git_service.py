@@ -59,7 +59,7 @@ def _run(repo_path: str, *args, timeout: int = 30) -> str:
 def git_init_bare(path: str) -> None:
     """Initialize a bare repository at the given path."""
     subprocess.run(
-        ["git", "init", "--bare", path],
+        ["git", "init", "--bare", "--initial-branch=main", path],
         check=True,
         capture_output=True,
         text=True,
@@ -74,12 +74,12 @@ def git_init_bare(path: str) -> None:
     with open(pre_receive_path, "w") as f:
         f.write("#!/bin/bash\n")
         f.write("while read oldrev newrev refname; do\n")
-        f.write("    resp=$(curl -s -w \"\\n%{http_code}\" -X POST http://127.0.0.1:5000/internal/hook/pre-receive \\\n")
+        f.write("    resp=$(curl -s -w \"\\n%{http_code}\" -X POST http://127.0.0.1:5000/api/internal/hook/pre-receive \\\n")
         f.write("      -H \"Content-Type: application/json\" \\\n")
         f.write("      -H \"X-Hook-Secret: $INTERNAL_HOOK_SECRET\" \\\n")
         f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\", \\\"user_id\\\": \\\"$SECUREGIT_USER_ID\\\"}\")\n")
         f.write("    http_code=$(echo \"$resp\" | tail -n1)\n")
-        f.write("    body=$(echo \"$resp\" | sed '\\$d')\n")
+        f.write("    body=$(echo \"$resp\" | sed '$d')\n")
         f.write("    if [ \"$http_code\" -ne 200 ]; then\n")
         f.write("        echo \"$body\" >&2\n")
         f.write("        exit 1\n")
@@ -92,7 +92,7 @@ def git_init_bare(path: str) -> None:
     with open(post_receive_path, "w") as f:
         f.write("#!/bin/bash\n")
         f.write("while read oldrev newrev refname; do\n")
-        f.write("    curl -s -f -X POST http://127.0.0.1:5000/internal/hook/post-receive \\\n")
+        f.write("    curl -s -f -X POST http://127.0.0.1:5000/api/internal/hook/post-receive \\\n")
         f.write("      -H \"Content-Type: application/json\" \\\n")
         f.write("      -H \"X-Hook-Secret: $INTERNAL_HOOK_SECRET\" \\\n")
         f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\"}\" > /dev/null\n")

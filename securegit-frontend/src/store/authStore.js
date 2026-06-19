@@ -17,7 +17,9 @@ const useAuthStore = create(
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: err.response?.data?.message || 'Login failed.' };
+          const message = err.response?.data?.message
+            || (err.response ? 'Login failed. Please try again.' : 'Network error. Please check your connection.');
+          return { success: false, error: message };
         }
       },
 
@@ -29,7 +31,9 @@ const useAuthStore = create(
           return { success: true };
         } catch (err) {
           set({ isLoading: false });
-          return { success: false, error: err.response?.data?.message || 'Registration failed.' };
+          const message = err.response?.data?.message
+            || (err.response ? 'Registration failed. Please try again.' : 'Network error. Please check your connection.');
+          return { success: false, error: message };
         }
       },
 

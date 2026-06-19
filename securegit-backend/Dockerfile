@@ -9,7 +9,11 @@ RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
     openssh-server \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Set git global config
+RUN git config --global init.defaultBranch main
 
 # Set working directory
 WORKDIR /app
@@ -21,9 +25,22 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . /app
 
-# Setup directories
+# Setup directories and git user
 RUN mkdir -p /srv/git /mnt/backup /var/run/sshd
-RUN chown -R www-data:www-data /app /srv/git /mnt/backup
+RUN useradd -m -d /home/git -s /bin/bash git
+RUN chown -R www-data:www-data /app /mnt/backup
+RUN chown -R git:git /srv/git /home/git
+
+# Configure SSH daemon
+RUN ssh-keygen -A && \
+    echo "Port 2222" >> /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication no" >> /etc/ssh/sshd_config && \
+    echo "AllowUsers git" >> /etc/ssh/sshd_config && \
+    echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config && \
+    echo "AuthorizedKeysFile /home/git/.ssh/authorized_keys" >> /etc/ssh/sshd_config
+
+# Make entrypoint executable
+RUN chmod +x /app/entrypoint.sh
 
 # Expose ports for Flask (Gunicorn) and SSH
 EXPOSE 5000
@@ -35,5 +52,6 @@ ENV FLASK_ENV=production
 ENV GIT_REPOS_BASE=/srv/git
 ENV REDIS_URL=redis://redis:6379/0
 
-# Start Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "wsgi:app"]
+# Start via entrypoint (handles migrations + gunicorn)
+CMD ["/app/entrypoint.sh"]
+

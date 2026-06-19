@@ -36,9 +36,9 @@ def provision_jail(username: str) -> str:
         os.makedirs(os.path.join(jail, sub), mode=0o755, exist_ok=True)
 
     if _IS_LINUX:
-        _set_ownership(jail, "root", "root")
+        _set_ownership(jail, "git", "git")
         repos_dir = os.path.join(jail, "repos")
-        _set_ownership(repos_dir, username, username)
+        _set_ownership(repos_dir, "git", "git")
 
     logger.info("Provisioned chroot jail at %s", jail)
     return jail

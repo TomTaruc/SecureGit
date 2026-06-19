@@ -21,7 +21,11 @@ INTERNAL_DOMAIN = os.environ.get("INTERNAL_DOMAIN", "securegit.local")
 
 
 def _build_clone_url(username: str, project_name: str) -> str:
-    return f"git@{INTERNAL_DOMAIN}:{username}/{project_name}.git"
+    ssh_port = os.environ.get("SSH_PORT", "22")
+    if ssh_port == "22":
+        return f"git@{INTERNAL_DOMAIN}:{username}/{project_name}.git"
+    else:
+        return f"ssh://git@{INTERNAL_DOMAIN}:{ssh_port}/{username}/{project_name}.git"
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +74,9 @@ def create_project():
     # Initialize bare git repo
     try:
         git_service.git_init_bare(repo_path)
+        # Ensure the git system user owns the repository so SSH pushes succeed
+        import subprocess
+        subprocess.run(["chown", "-R", "git:git", repo_path], check=False)
     except Exception as e:
         return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
 

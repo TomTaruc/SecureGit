@@ -84,7 +84,6 @@ CREATE INDEX IF NOT EXISTS idx_repositories_project ON repositories(project_id);
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chroot_jails (
     jail_id      SERIAL PRIMARY KEY,
-    project_id   INT          NOT NULL REFERENCES projects(project_id)  ON DELETE CASCADE,
     user_id      INT          NOT NULL REFERENCES users(user_id)         ON DELETE CASCADE,
     jail_path    VARCHAR(255) NOT NULL UNIQUE,
     fs_jail_user VARCHAR(50)  NOT NULL,

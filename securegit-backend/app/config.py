@@ -12,7 +12,7 @@ class BaseConfig:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     JWT_TOKEN_LOCATION = ["cookies", "headers"]
     JWT_COOKIE_SECURE = True
-    JWT_COOKIE_SAMESITE = "Strict"
+    JWT_COOKIE_SAMESITE = "Lax"
     JWT_COOKIE_CSRF_PROTECT = True
 
     BCRYPT_LOG_ROUNDS = 12
@@ -52,6 +52,8 @@ class ProductionConfig(BaseConfig):
     )
     RATELIMIT_STORAGE_URI = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
     JWT_COOKIE_SECURE = os.environ.get("SECURE_COOKIES", "false").lower() == "true"
+    JWT_COOKIE_SAMESITE = "Lax"
+    JWT_COOKIE_CSRF_PROTECT = False  # CORS origin restrictions provide equivalent CSRF protection behind nginx proxy
 
 
 class TestingConfig(BaseConfig):

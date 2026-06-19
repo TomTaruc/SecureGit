@@ -80,7 +80,7 @@ def main():
     }).encode("utf-8")
 
     req = urllib.request.Request(
-        "http://127.0.0.1:5000/internal/ssh-auth",
+        "http://127.0.0.1:5000/api/internal/ssh-auth",
         data=req_data,
         headers={
             "Content-Type": "application/json",
@@ -120,6 +120,7 @@ def main():
     # We must ensure no other arguments are passed to prevent injection
     cmd_to_exec = [git_cmd, absolute_repo_path]
     os.environ["SECUREGIT_USER_ID"] = str(user_id)
+    os.environ["INTERNAL_HOOK_SECRET"] = hook_secret
     os.execvp(git_cmd, cmd_to_exec)
 
 if __name__ == "__main__":

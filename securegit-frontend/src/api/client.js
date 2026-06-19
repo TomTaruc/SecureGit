@@ -22,14 +22,33 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
+// Auto-refresh on 401 (skip for auth endpoints to avoid loops)
 let _refreshPromise = null;
+const AUTH_PATHS = ['/auth/login', '/auth/register', '/auth/logout', '/auth/refresh'];
 
 client.interceptors.response.use(
   (res) => res,
   async (err) => {
     const originalRequest = err.config;
-    if (err.response?.status === 401 && !originalRequest._retry) {
+
+    // Network / timeout errors
+    if (!err.response) {
+      err.message = 'Network error. Please check your connection and try again.';
+      return Promise.reject(err);
+    }
+
+    // Rate limit
+    if (err.response.status === 429) {
+      const msg = err.response.data?.message || 'Too many requests. Please wait a moment and try again.';
+      err.response.data = { ...err.response.data, message: msg };
+      return Promise.reject(err);
+    }
+
+    // Don't try to refresh if the failing request is itself an auth endpoint
+    const requestPath = originalRequest.url || '';
+    const isAuthPath = AUTH_PATHS.some(p => requestPath.includes(p));
+
+    if (err.response.status === 401 && !originalRequest._retry && !isAuthPath) {
       originalRequest._retry = true;
       // Deduplicate concurrent refresh calls
       if (!_refreshPromise) {
@@ -47,7 +66,10 @@ client.interceptors.response.use(
         await _refreshPromise;
         return client(originalRequest);
       } catch (refreshErr) {
-        window.location.href = '/login';
+        // Only redirect if not already on login page
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshErr);
       }
     }

@@ -1,0 +1,1 @@
+curl -s -H "X-Hook-Secret: hook-secret-change" -H "Content-Type: application/json" -d '{"user_id": 1, "owner": "testuser", "project_name": "sshtest-449119798", "action": "write"}' http://localhost:5000/internal/ssh-auth
