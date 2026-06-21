@@ -52,18 +52,18 @@ def _sign_payload(secret: str, payload: bytes) -> str:
     return "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
 
-def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict) -> int:
+def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error: bool = False):
     """
     Dispatch a webhook event to a single endpoint.
     Returns HTTP status code of the delivery (0 = connection error).
     """
     if not endpoint.is_active:
-        return 0
+        return (0, "Webhook is not active") if return_error else 0
     if event not in endpoint.events:
-        return 0
+        return (0, f"Event {event} not in configured events") if return_error else 0
     if not _is_internal_url(endpoint.target_url):
         logger.warning("Blocked external webhook URL: %s", endpoint.target_url)
-        return 0
+        return (0, "Only internal LAN/localhost URLs are allowed") if return_error else 0
 
     body = json.dumps(payload, default=str).encode("utf-8")
     headers = {
@@ -73,17 +73,24 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict) -> int:
     if endpoint.secret_hash:
         headers["X-SecureGit-Signature"] = _sign_payload(endpoint.secret_hash, body)
 
+    error_msg = ""
     try:
         resp = requests.post(endpoint.target_url, data=body, headers=headers, timeout=10)
         status = resp.status_code
+        if not (200 <= status < 300):
+            error_msg = f"HTTP {status}: {resp.text[:200]}"
     except requests.RequestException as e:
         logger.error("Webhook delivery failed to %s: %s", endpoint.target_url, e)
         status = 0
+        error_msg = str(e)
 
     # Update delivery status
     endpoint.last_delivery_at = datetime.now(timezone.utc)
     endpoint.last_delivery_status = status
     db.session.commit()
+    
+    if return_error:
+        return status, error_msg
     return status
 
 

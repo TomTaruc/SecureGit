@@ -133,7 +133,9 @@ def get_project(username, project_name, project, current_user):
     try:
         cached = redis_client.get(cache_key)
         if cached:
-            return jsonify(json.loads(cached)), 200
+            data = json.loads(cached)
+            data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
+            return jsonify(data), 200
     except Exception:
         pass
 
@@ -143,6 +145,7 @@ def get_project(username, project_name, project, current_user):
     except Exception:
         pass
 
+    data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
     return jsonify(data), 200
 
 

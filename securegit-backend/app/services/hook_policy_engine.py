@@ -4,7 +4,7 @@ from flask import jsonify
 
 class HookPolicyEngine:
     @staticmethod
-    def validate_pre_receive(repo_path, oldrev, newrev, ref, user_id_str):
+    def validate_pre_receive(repo_path, oldrev, newrev, ref, user_id_str, git_env=None):
         if not os.path.isabs(repo_path) or ".." in repo_path:
             return {"error": "Invalid path."}, 400
 
@@ -44,7 +44,7 @@ class HookPolicyEngine:
 
         if is_branch:
             # Check Branch Protection Rules
-            err, status = HookPolicyEngine._enforce_branch_protection(repo, branch_name, user_role, is_owner, oldrev, newrev, is_delete, is_new, repo_path)
+            err, status = HookPolicyEngine._enforce_branch_protection(repo, branch_name, user_role, is_owner, oldrev, newrev, is_delete, is_new, repo_path, git_env)
             if err:
                 return {"error": err}, status
 
@@ -62,7 +62,7 @@ class HookPolicyEngine:
         return {"message": "OK"}, 200
 
     @staticmethod
-    def _enforce_branch_protection(repo, branch_name, user_role, is_owner, oldrev, newrev, is_delete, is_new, repo_path):
+    def _enforce_branch_protection(repo, branch_name, user_role, is_owner, oldrev, newrev, is_delete, is_new, repo_path, git_env):
         from ..models.branch_protection import BranchProtectionRule
         import fnmatch
 
@@ -90,8 +90,13 @@ class HookPolicyEngine:
             return f"Branch '{branch_name}' is protected against deletion.", 403
 
         if not is_delete and not is_new and matched_rule.disable_force_push:
+            sub_env = os.environ.copy()
+            if git_env:
+                for k, v in git_env.items():
+                    if v:
+                        sub_env[k] = v
             try:
-                subprocess.run(["git", "merge-base", "--is-ancestor", oldrev, newrev], cwd=repo_path, check=True, capture_output=True)
+                subprocess.run(["git", "merge-base", "--is-ancestor", oldrev, newrev], cwd=repo_path, check=True, capture_output=True, env=sub_env)
             except subprocess.CalledProcessError:
                 return f"Force pushing to '{branch_name}' is disabled.", 403
 

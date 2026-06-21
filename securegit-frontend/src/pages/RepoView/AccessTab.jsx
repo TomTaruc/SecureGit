@@ -92,8 +92,9 @@ export default function AccessTab() {
 
   return (
     <div>
-      <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
-        <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
+      {project.can_manage_collaborators && (
+        <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
         <form onSubmit={handleAdd} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Search User</label>
@@ -140,6 +141,7 @@ export default function AccessTab() {
           </div>
         </form>
       </div>
+      )}
 
       <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Collaborators</h2>
       <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -157,15 +159,21 @@ export default function AccessTab() {
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Added {new Date(c.granted_at).toLocaleDateString()}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-                <select
-                  value={c.permission} onChange={e => handleUpdate(c.user_id, e.target.value)}
-                  style={{ padding: '4px 8px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-                >
-                  {perms.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                <Button variant="danger" size="sm" onClick={() => handleRemove(c.user_id)}>Remove</Button>
-              </div>
+              {project.can_manage_collaborators ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                  <select
+                    value={c.permission} onChange={e => handleUpdate(c.user_id, e.target.value)}
+                    style={{ padding: '4px 8px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+                  >
+                    {perms.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <Button variant="danger" size="sm" onClick={() => handleRemove(c.user_id)}>Remove</Button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+                  <Badge variant="outline">{c.permission}</Badge>
+                </div>
+              )}
             </div>
           ))
         )}

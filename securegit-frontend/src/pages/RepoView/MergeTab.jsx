@@ -35,6 +35,11 @@ function MergeTabContent() {
       ]);
       setCompareData(compRes?.data || null);
       setConflicts(confRes?.data || null);
+      if (compRes?.data?.behind > 0) {
+        setStrategy('squash');
+      } else {
+        setStrategy('ff');
+      }
     } catch (err) {
       console.error("Compare error:", err);
       toastError(err?.response?.data?.message || 'Failed to compare branches');
@@ -138,7 +143,7 @@ function MergeTabContent() {
                   value={strategy} onChange={e => setStrategy(e.target.value)}
                   style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
                 >
-                  <option value="ff">Fast-forward</option>
+                  {safeCompareData.behind === 0 && <option value="ff">Fast-forward</option>}
                   <option value="squash">Squash and Merge</option>
                   <option value="rebase">Rebase and Merge</option>
                 </select>

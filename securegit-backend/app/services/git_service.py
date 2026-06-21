@@ -84,7 +84,7 @@ def git_init_bare(path: str) -> None:
         f.write("    resp=$(curl -s -w \"\\n%{http_code}\" -X POST http://127.0.0.1:5000/api/internal/hook/pre-receive \\\n")
         f.write("      -H \"Content-Type: application/json\" \\\n")
         f.write("      -H \"X-Hook-Secret: $INTERNAL_HOOK_SECRET\" \\\n")
-        f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\", \\\"user_id\\\": \\\"$SECUREGIT_USER_ID\\\"}\")\n")
+        f.write("      -d \"{\\\"repo_path\\\": \\\"$PWD\\\", \\\"oldrev\\\": \\\"$oldrev\\\", \\\"newrev\\\": \\\"$newrev\\\", \\\"ref\\\": \\\"$refname\\\", \\\"user_id\\\": \\\"$SECUREGIT_USER_ID\\\", \\\"git_env\\\": {\\\"GIT_QUARANTINE_PATH\\\": \\\"$GIT_QUARANTINE_PATH\\\", \\\"GIT_OBJECT_DIRECTORY\\\": \\\"$GIT_OBJECT_DIRECTORY\\\", \\\"GIT_ALTERNATE_OBJECT_DIRECTORIES\\\": \\\"$GIT_ALTERNATE_OBJECT_DIRECTORIES\\\"}}\")\n")
         f.write("    http_code=$(echo \"$resp\" | tail -n1)\n")
         f.write("    body=$(echo \"$resp\" | sed '$d')\n")
         f.write("    if [ \"$http_code\" -ne 200 ]; then\n")
@@ -271,10 +271,10 @@ def git_diff(repo_path: str, commit_hash: str) -> list[dict]:
     """Parse unified diff for a commit into structured JSON."""
     h = _safe_hash(commit_hash)
     try:
-        raw = _run(repo_path, "show", h, "--unified=3", "--format=")
+        raw = _run(repo_path, "show", h, "--no-color", "--unified=3", "--format=")
     except RuntimeError:
         # Initial commit: diff against empty tree
-        raw = _run(repo_path, "diff-tree", "--no-commit-id", "-r", "--unified=3", "--format=", h)
+        raw = _run(repo_path, "diff-tree", "--no-color", "--no-commit-id", "-r", "--unified=3", "--format=", h)
 
     return _parse_unified_diff(raw)
 
@@ -282,7 +282,7 @@ def git_diff(repo_path: str, commit_hash: str) -> list[dict]:
 def git_diff_branches(repo_path: str, base: str, head: str) -> list[dict]:
     """Parse unified diff between two branches."""
     raw = _run(
-        repo_path, "diff",
+        repo_path, "diff", "--no-color",
         _safe_ref(base), _safe_ref(head),
         "--unified=3",
     )

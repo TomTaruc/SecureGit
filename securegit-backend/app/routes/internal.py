@@ -187,12 +187,13 @@ def pre_receive():
     newrev = data.get("newrev")
     ref = data.get("ref")
     user_id_str = data.get("user_id")
+    git_env = data.get("git_env", {})
 
     if not all([repo_path, oldrev, newrev, ref, user_id_str]):
         return jsonify({"error": "Invalid payload."}), 400
 
     from ..services.hook_policy_engine import HookPolicyEngine
-    resp, status_code = HookPolicyEngine.validate_pre_receive(repo_path, oldrev, newrev, ref, user_id_str)
+    resp, status_code = HookPolicyEngine.validate_pre_receive(repo_path, oldrev, newrev, ref, user_id_str, git_env)
     return jsonify(resp), status_code
 
 @internal_bp.post("/backup")

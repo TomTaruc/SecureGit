@@ -67,6 +67,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
     Returns list of conflicting file paths (empty = no conflicts).
     """
     tmp_dir = tempfile.mkdtemp(prefix="securegit-merge-")
+    os.rmdir(tmp_dir)
     conflicts = []
     try:
         subprocess.run(
@@ -122,6 +123,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         return {"success": False, "error": "Cannot fast-forward: branches have diverged."}
 
     tmp_dir = tempfile.mkdtemp(prefix="securegit-ff-")
+    os.rmdir(tmp_dir)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
@@ -156,6 +158,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
 def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict:
     """Squash all commits from source and create a single merge commit on target."""
     tmp_dir = tempfile.mkdtemp(prefix="securegit-squash-")
+    os.rmdir(tmp_dir)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
@@ -194,6 +197,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
 def rebase_merge(repo_path: str, target: str, source: str) -> dict:
     """Rebase source onto target and fast-forward target."""
     tmp_dir = tempfile.mkdtemp(prefix="securegit-rebase-")
+    os.rmdir(tmp_dir)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(source)],
