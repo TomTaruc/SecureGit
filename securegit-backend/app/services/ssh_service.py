@@ -109,9 +109,12 @@ def validate_key_format(public_key: str) -> Optional[str]:
 
 def add_key(user_id: int, public_key: str) -> None:
     """Append a new authorized_keys entry for user_id."""
+    clean_key = public_key.strip()
+    if "\n" in clean_key or "\r" in clean_key:
+        raise ValueError("Invalid public key format: newlines are not allowed.")
     lines = _read_keys()
-    fp = validate_key_format(public_key) or "unknown"
-    new_line = _build_authorized_line(user_id, public_key, fp) + "\n"
+    fp = validate_key_format(clean_key) or "unknown"
+    new_line = _build_authorized_line(user_id, clean_key, fp) + "\n"
     lines.append(new_line)
     _write_keys_atomic(lines)
     logger.info("Added SSH key for user_id=%d", user_id)
@@ -136,7 +139,10 @@ def rebuild_authorized_keys(all_keys: list[dict]) -> None:
     lines = []
     for entry in all_keys:
         fp = entry.get("fingerprint") or "unknown"
-        line = _build_authorized_line(entry["user_id"], entry["public_key"], fp) + "\n"
+        clean_key = entry["public_key"].strip()
+        if "\n" in clean_key or "\r" in clean_key:
+            continue  # Skip invalid/malicious keys
+        line = _build_authorized_line(entry["user_id"], clean_key, fp) + "\n"
         lines.append(line)
     _write_keys_atomic(lines)
     logger.info("Rebuilt authorized_keys with %d entries", len(lines))

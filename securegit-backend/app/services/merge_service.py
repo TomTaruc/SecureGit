@@ -132,7 +132,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
     return conflicts
 
 
-def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
+def fast_forward_merge(repo_path: str, target: str, source: str, user_id: int) -> dict:
     """
     Attempt a fast-forward merge of source into target.
     Only succeeds if target is an ancestor of source.
@@ -154,11 +154,15 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         )
         if result.returncode != 0:
             return {"success": False, "error": result.stderr.strip()}
-        # Push the result back to the bare repo
+        
+        # Push the result back to the bare repo with user context
+        env = os.environ.copy()
+        env["SECUREGIT_USER_ID"] = str(user_id)
+        
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
-            user="git", group="git"
+            env=env, user="git", group="git"
         )
         return {"success": True, "strategy": "fast-forward"}
     except Exception as e:
@@ -172,7 +176,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict:
+def squash_merge(repo_path: str, target: str, source: str, message: str, user_id: int) -> dict:
     """Squash all commits from source and create a single merge commit on target."""
     tmp_dir = _worktree_dir(repo_path)
     try:
@@ -193,10 +197,14 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
             user="git", group="git"
         )
+        
+        env = os.environ.copy()
+        env["SECUREGIT_USER_ID"] = str(user_id)
+        
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
-            user="git", group="git"
+            env=env, user="git", group="git"
         )
         return {"success": True, "strategy": "squash"}
     except Exception as e:
@@ -210,7 +218,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
-def rebase_merge(repo_path: str, target: str, source: str) -> dict:
+def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict:
     """Rebase source onto target and fast-forward target."""
     tmp_dir = _worktree_dir(repo_path)
     try:
@@ -236,10 +244,14 @@ def rebase_merge(repo_path: str, target: str, source: str) -> dict:
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
             user="git", group="git"
         )
+        
+        env = os.environ.copy()
+        env["SECUREGIT_USER_ID"] = str(user_id)
+        
         subprocess.run(
             ["git", "push", repo_path, _safe_ref(target)],
             cwd=tmp_dir, check=True, capture_output=True, shell=False,
-            user="git", group="git"
+            env=env, user="git", group="git"
         )
         return {"success": True, "strategy": "rebase"}
     except Exception as e:

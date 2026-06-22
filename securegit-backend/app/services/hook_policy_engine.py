@@ -42,6 +42,11 @@ class HookPolicyEngine:
                         user_role = "admin"
             except ValueError:
                 pass
+                
+        # Enforce base write permissions for user-initiated pushes
+        if user_id_str:
+            if not user_role or (user_role not in ("write", "admin") and not is_owner):
+                return {"error": f"Push access denied for role: {user_role or 'unknown'}"}, 403
 
         if is_branch:
             # Check Branch Protection Rules

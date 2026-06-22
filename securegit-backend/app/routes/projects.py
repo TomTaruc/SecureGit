@@ -44,7 +44,7 @@ def list_projects():
         Project.project_id.in_(collaborated_ids),
         Project.owner_user_id != user_id,
         Project.deleted_at.is_(None)
-    ).all()
+    ).all() if collaborated_ids else []
     all_projects = owned + collaborated
     return jsonify([p.to_dict() for p in all_projects]), 200
 

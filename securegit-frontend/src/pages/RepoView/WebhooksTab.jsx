@@ -77,7 +77,7 @@ export default function WebhooksTab() {
         toastError(`Webhook test failed: ${res.data.error_message || 'HTTP ' + res.data.delivery_status}`);
       }
     } catch (err) {
-      toastError('Failed to test webhook');
+      toastError(err.response?.data?.message || err.response?.data?.error || 'Failed to test webhook');
     }
   };
 

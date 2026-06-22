@@ -63,11 +63,11 @@ def do_merge(username, project_name, project, current_user):
 
     repo_path = project.repository.repo_path
     if strategy == "squash":
-        result = merge_service.squash_merge(repo_path, base, head, message)
+        result = merge_service.squash_merge(repo_path, base, head, message, current_user.user_id)
     elif strategy == "rebase":
-        result = merge_service.rebase_merge(repo_path, base, head)
+        result = merge_service.rebase_merge(repo_path, base, head, current_user.user_id)
     else:
-        result = merge_service.fast_forward_merge(repo_path, base, head)
+        result = merge_service.fast_forward_merge(repo_path, base, head, current_user.user_id)
 
     status = 200 if result["success"] else 400
     return jsonify(result), status
