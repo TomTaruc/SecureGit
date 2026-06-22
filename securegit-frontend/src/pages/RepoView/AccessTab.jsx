@@ -89,10 +89,11 @@ export default function AccessTab() {
   };
 
   const perms = ['read', 'push', 'manage_collaborators', 'manage_settings', 'admin'];
+  const canManage = project?.can_manage_collaborators === true;
 
   return (
     <div>
-      {project.can_manage_collaborators && (
+      {canManage && (
         <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
           <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
         <form onSubmit={handleAdd} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start' }}>
@@ -159,7 +160,7 @@ export default function AccessTab() {
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Added {new Date(c.granted_at).toLocaleDateString()}</div>
                 </div>
               </div>
-              {project.can_manage_collaborators ? (
+              {canManage ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
                   <select
                     value={c.permission} onChange={e => handleUpdate(c.user_id, e.target.value)}

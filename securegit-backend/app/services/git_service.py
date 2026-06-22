@@ -309,6 +309,8 @@ def _parse_unified_diff(raw: str) -> list[dict]:
                 "hunks":         [],
             }
             current_hunk = None
+        elif line.startswith("Binary files") and current_file:
+            current_file["change_type"] = "binary"
         elif line.startswith("--- "):
             pass  # handled by +++ line
         elif line.startswith("+++ ") and current_file:
@@ -323,6 +325,8 @@ def _parse_unified_diff(raw: str) -> list[dict]:
             current_file["change_type"] = "deleted"
         elif line.startswith("rename") and current_file:
             current_file["change_type"] = "renamed"
+        elif line.startswith("\\ No newline"):
+            continue
         elif line.startswith("@@") and current_file:
             if current_hunk:
                 current_file["hunks"].append(current_hunk)

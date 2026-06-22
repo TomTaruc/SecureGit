@@ -23,7 +23,7 @@ ExecStart=/opt/securegit/venv/bin/gunicorn \
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
-PrivateTmp=true
+# PrivateTmp=true
 Restart=always
 RestartSec=5
 

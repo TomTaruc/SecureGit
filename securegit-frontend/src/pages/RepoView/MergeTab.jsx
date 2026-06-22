@@ -35,10 +35,10 @@ function MergeTabContent() {
       ]);
       setCompareData(compRes?.data || null);
       setConflicts(confRes?.data || null);
-      if (compRes?.data?.behind > 0) {
-        setStrategy('squash');
-      } else {
+      if (compRes?.data?.ff_possible) {
         setStrategy('ff');
+      } else {
+        setStrategy('squash');
       }
     } catch (err) {
       console.error("Compare error:", err);
@@ -84,6 +84,7 @@ function MergeTabContent() {
   const diffs = Array.isArray(safeCompareData.diff) ? safeCompareData.diff : [];
   const hasConflicts = Boolean(conflicts?.has_conflicts);
   const conflictList = Array.isArray(conflicts?.conflicts) ? conflicts.conflicts : [];
+  const ffPossible = Boolean(safeCompareData.ff_possible);
 
   return (
     <div>
@@ -131,7 +132,9 @@ function MergeTabContent() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Badge variant="success">✓ Able to merge</Badge>
+                  <Badge variant="success">
+                    ✓ {ffPossible ? "Fast-forward available" : "Merge requires squash or rebase"}
+                  </Badge>
                   <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
                 </div>
               )}
@@ -143,7 +146,7 @@ function MergeTabContent() {
                   value={strategy} onChange={e => setStrategy(e.target.value)}
                   style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
                 >
-                  {safeCompareData.behind === 0 && <option value="ff">Fast-forward</option>}
+                  {ffPossible && <option value="ff">Fast-forward</option>}
                   <option value="squash">Squash and Merge</option>
                   <option value="rebase">Rebase and Merge</option>
                 </select>

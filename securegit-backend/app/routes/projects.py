@@ -126,25 +126,7 @@ def create_project():
 @jwt_required()
 @require_project_access("read")
 def get_project(username, project_name, project, current_user):
-    from ..extensions import redis_client
-    import json
-    
-    cache_key = f"project:{project.project_id}"
-    try:
-        cached = redis_client.get(cache_key)
-        if cached:
-            data = json.loads(cached)
-            data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
-            return jsonify(data), 200
-    except Exception:
-        pass
-
     data = project.to_dict()
-    try:
-        redis_client.setex(cache_key, 300, json.dumps(data))
-    except Exception:
-        pass
-
     data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
     return jsonify(data), 200
 
@@ -236,6 +218,13 @@ def add_collaborator(username, project_name, project, current_user):
         return jsonify({"error": "forbidden", "message": "Cannot grant a role equal to or higher than your own.", "status": 403}), 403
 
     permissions = custom_permissions if custom_permissions else PERMISSION_PRESETS.get(permission_level, PERMISSION_PRESETS["read"])
+    if custom_permissions:
+        if custom_permissions.get("admin"):
+            permission_level = "admin"
+        elif custom_permissions.get("push"):
+            permission_level = "write"
+        else:
+            permission_level = "read"
 
     collab = Collaborator(
         project_id=project.project_id,
@@ -281,6 +270,12 @@ def update_collaborator(username, project_name, uid, project, current_user):
         if current_weight < 100 and target_collab_weight >= current_weight:
             return jsonify({"error": "forbidden", "message": "Cannot modify custom permissions of equal or higher authority.", "status": 403}), 403
         collab.permissions = data["permissions"]
+        if data["permissions"].get("admin"):
+            collab.permission = "admin"
+        elif data["permissions"].get("push"):
+            collab.permission = "write"
+        else:
+            collab.permission = "read"
 
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="collaborator.update", target_type="user", target_id=uid)

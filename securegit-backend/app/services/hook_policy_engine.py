@@ -34,9 +34,8 @@ class HookPolicyEngine:
                     is_owner = (project.owner_user_id == user_id)
                     is_admin = (user.role == "admin")
                     
-                    from ..models.collaborator import Collaborator
-                    collab = Collaborator.query.filter_by(project_id=project.project_id, user_id=user_id).first()
-                    user_role = collab.permission if collab else ("owner" if is_owner else "dev")
+                    from ..utils.rbac import get_user_permission
+                    user_role = get_user_permission(user_id, project.project_id) or ("owner" if is_owner else "read")
                     if is_admin:
                         user_role = "admin"
             except ValueError:
@@ -96,9 +95,17 @@ class HookPolicyEngine:
                     if v:
                         sub_env[k] = v
             try:
-                subprocess.run(["git", "merge-base", "--is-ancestor", oldrev, newrev], cwd=repo_path, check=True, capture_output=True, env=sub_env)
+                subprocess.run(
+                    ["git", "merge-base", "--is-ancestor", oldrev, newrev],
+                    cwd=repo_path, check=True, capture_output=True,
+                    env=sub_env, user="git", group="git",
+                )
             except subprocess.CalledProcessError:
                 return f"Force pushing to '{branch_name}' is disabled.", 403
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error("merge-base ancestor check failed unexpectedly: %s", e)
+                return f"Unable to verify push safety for '{branch_name}'; push rejected as a precaution.", 403
 
         return None, 200
 

@@ -13,8 +13,25 @@ from datetime import datetime, timezone
 from typing import Optional
 from ..extensions import db
 from ..models.enhancement_models import WebhookEndpoint
+from requests.exceptions import ConnectTimeout, ConnectionError, SSLError, Timeout
 
 logger = logging.getLogger(__name__)
+
+def _classify_error(e: Exception) -> str:
+    if isinstance(e, ConnectTimeout):
+        return "Connection timeout — the target did not respond in time."
+    if isinstance(e, SSLError):
+        return f"TLS/SSL handshake failed: {e}"
+    if isinstance(e, ConnectionError):
+        msg = str(e)
+        if "Name or service not known" in msg or "nodename nor servname" in msg:
+            return f"DNS resolution failed: {msg}"
+        if "Connection refused" in msg:
+            return f"Connection refused: {msg}"
+        return f"Connection error: {msg}"
+    if isinstance(e, Timeout):
+        return "Request timed out."
+    return str(e)
 
 # Allow only localhost, LAN IPs, and .local domains
 _ALLOWED_HOSTS_RE = re.compile(
@@ -82,7 +99,7 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
     except requests.RequestException as e:
         logger.error("Webhook delivery failed to %s: %s", endpoint.target_url, e)
         status = 0
-        error_msg = str(e)
+        error_msg = _classify_error(e)
 
     # Update delivery status
     endpoint.last_delivery_at = datetime.now(timezone.utc)

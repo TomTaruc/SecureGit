@@ -30,8 +30,12 @@ export default function ProtectionTab() {
     if (!pattern) return;
     setAdding(true);
     try {
-      await branchesApi.createProtectionRule(username, projectName, { branch_pattern: pattern });
-      toastSuccess('Rule created');
+      const res = await branchesApi.createProtectionRule(username, projectName, { branch_pattern: pattern });
+      if (res.data?.warning) {
+        toastError(res.data.warning);
+      } else {
+        toastSuccess('Rule created');
+      }
       setPattern('');
       fetchRules();
     } catch (err) {
@@ -105,6 +109,28 @@ export default function ProtectionTab() {
                   Require Admin for Push
                 </label>
               </div>
+              {r.restrict_push && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Allowed push roles (when Restrict Push is enabled)</label>
+                  <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                    {['read', 'write', 'admin'].map(role => (
+                      <label key={role} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
+                        <input
+                          type="checkbox"
+                          checked={(r.allowed_push_roles || []).includes(role)}
+                          onChange={e => {
+                            const next = e.target.checked
+                              ? [...(r.allowed_push_roles || []), role]
+                              : (r.allowed_push_roles || []).filter(x => x !== role);
+                            handleUpdate(r.rule_id, 'allowed_push_roles', next);
+                          }}
+                        />
+                        {role}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}

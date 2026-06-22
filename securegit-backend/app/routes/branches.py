@@ -135,7 +135,23 @@ def create_protection_rule(username, project_name, project, current_user):
     db.session.add(rule)
     db.session.commit()
     audit_service.log(actor_id=current_user.user_id, action="branch_protection.create", target_type="project", target_id=project.project_id, detail=pattern)
-    return jsonify(rule.to_dict()), 201
+
+    # NEW: warn if the pattern currently matches no branches
+    import fnmatch
+    from ..services import git_service
+    try:
+        existing_branches = [b["name"] for b in git_service.git_branches(project.repository.repo_path)]
+    except Exception:
+        existing_branches = []
+    matches_any = any(fnmatch.fnmatch(b, pattern) for b in existing_branches)
+
+    response = rule.to_dict()
+    if not matches_any:
+        response["warning"] = (
+            f"This pattern doesn't match any existing branch. "
+            f"Double-check spelling/case — branch_pattern matching is case-sensitive."
+        )
+    return jsonify(response), 201
 
 
 @branches_bp.patch("/<username>/<project_name>/protection/<int:rule_id>")

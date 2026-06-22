@@ -7,6 +7,7 @@ import tempfile
 import os
 import shutil
 import subprocess
+import uuid
 from typing import Optional
 from .git_service import (
     _safe_ref, _run, git_rev_list_count, git_merge_base,
@@ -14,6 +15,17 @@ from .git_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+def _worktree_dir(repo_path: str) -> str:
+    base = os.path.join(os.path.dirname(repo_path), ".worktrees")
+    os.makedirs(base, exist_ok=True)
+    try:
+        import pwd
+        git_pwd = pwd.getpwnam("git")
+        os.chown(base, git_pwd.pw_uid, git_pwd.pw_gid)
+    except Exception:
+        pass
+    return os.path.join(base, f"wt-{uuid.uuid4().hex}")
 
 
 def compare_branches(repo_path: str, base: str, head: str) -> dict:
@@ -26,6 +38,8 @@ def compare_branches(repo_path: str, base: str, head: str) -> dict:
         merge_base = git_merge_base(repo_path, base, head)
     except RuntimeError:
         merge_base = None
+
+    ff_possible = git_is_ancestor(repo_path, base, head)
 
     # Commits in head not in base
     try:
@@ -53,6 +67,7 @@ def compare_branches(repo_path: str, base: str, head: str) -> dict:
         "merge_base": merge_base,
         "commits":    commits,
         "diff":       git_diff_branches(repo_path, base, head),
+        "ff_possible": ff_possible,
     }
 
 
@@ -66,8 +81,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
     Attempt a dry-run merge in a temporary worktree to detect conflicts.
     Returns list of conflicting file paths (empty = no conflicts).
     """
-    tmp_dir = tempfile.mkdtemp(prefix="securegit-merge-")
-    os.rmdir(tmp_dir)
+    tmp_dir = _worktree_dir(repo_path)
     conflicts = []
     try:
         subprocess.run(
@@ -122,8 +136,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
     if not git_is_ancestor(repo_path, target, source):
         return {"success": False, "error": "Cannot fast-forward: branches have diverged."}
 
-    tmp_dir = tempfile.mkdtemp(prefix="securegit-ff-")
-    os.rmdir(tmp_dir)
+    tmp_dir = _worktree_dir(repo_path)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
@@ -157,8 +170,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str) -> dict:
 
 def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict:
     """Squash all commits from source and create a single merge commit on target."""
-    tmp_dir = tempfile.mkdtemp(prefix="securegit-squash-")
-    os.rmdir(tmp_dir)
+    tmp_dir = _worktree_dir(repo_path)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(target)],
@@ -196,8 +208,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str) -> dict
 
 def rebase_merge(repo_path: str, target: str, source: str) -> dict:
     """Rebase source onto target and fast-forward target."""
-    tmp_dir = tempfile.mkdtemp(prefix="securegit-rebase-")
-    os.rmdir(tmp_dir)
+    tmp_dir = _worktree_dir(repo_path)
     try:
         subprocess.run(
             ["git", "worktree", "add", tmp_dir, _safe_ref(source)],
