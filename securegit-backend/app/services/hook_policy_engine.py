@@ -5,7 +5,10 @@ from flask import jsonify
 class HookPolicyEngine:
     @staticmethod
     def validate_pre_receive(repo_path, oldrev, newrev, ref, user_id_str, git_env=None):
-        if not os.path.isabs(repo_path) or ".." in repo_path:
+        from ..utils.validators import ensure_repo_path_safe, SecurityError
+        try:
+            ensure_repo_path_safe(repo_path, "")
+        except SecurityError:
             return {"error": "Invalid path."}, 400
 
         from ..models.repository import Repository
@@ -105,7 +108,7 @@ class HookPolicyEngine:
                 result = subprocess.run(
                     ["git", "merge-base", "--is-ancestor", oldrev, newrev],
                     cwd=repo_path, capture_output=True,
-                    env=sub_env, user="git", group="git",
+                    env=sub_env, 
                 )
                 if result.returncode == 1:
                     return f"Force pushing to '{branch_name}' is disabled.", 403
@@ -128,7 +131,7 @@ class HookPolicyEngine:
                 out = subprocess.run(
                     ["git", "rev-list", "--merges", f"{oldrev}..{newrev}"],
                     cwd=repo_path, check=True, capture_output=True, text=True,
-                    env=sub_env, user="git", group="git",
+                    env=sub_env, 
                 ).stdout
                 if out.strip():
                     return f"Linear history required: merge commits are not allowed on '{branch_name}'.", 403

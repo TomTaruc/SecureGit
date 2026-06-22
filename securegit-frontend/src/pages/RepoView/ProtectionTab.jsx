@@ -7,7 +7,7 @@ import useUIStore from '../../store/uiStore';
 import * as branchesApi from '../../api/branches';
 
 export default function ProtectionTab() {
-  const { username, projectName } = useOutletContext();
+  const { username, projectName, project } = useOutletContext();
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pattern, setPattern] = useState('');
@@ -65,6 +65,16 @@ export default function ProtectionTab() {
       toastError('Failed to delete rule');
     }
   };
+
+  const canManage = project?.can_manage_settings === true;
+
+  if (!canManage) {
+    return (
+      <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: 'var(--border)' }}>
+        You do not have permission to view or manage branch protection rules in this repository.
+      </div>
+    );
+  }
 
   return (
     <div>

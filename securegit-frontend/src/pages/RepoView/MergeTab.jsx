@@ -141,9 +141,11 @@ function MergeTabContent() {
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Badge variant="success">
-                        ✓ {ffPossible ? "Fast-forward available" : "Fast-forward unavailable: branches have diverged"}
+                        ✓ {ffPossible ? "Fast-forward available" : "Branch diverged: A squash or rebase is required"}
                       </Badge>
-                      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
+                      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                        {ffPossible ? "This pull request can be safely fast-forwarded without creating a merge commit." : "These branches can be automatically merged using a non-linear strategy."}
+                      </span>
                     </div>
                   )}
                 </div>

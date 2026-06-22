@@ -93,6 +93,7 @@ class WebhookEndpoint(db.Model):
             "target_url":           self.target_url,
             "events":               self.events,
             "is_active":            self.is_active,
+            "secret":               "••••••••" if self.secret_hash else None,
             "last_delivery_at":     self.last_delivery_at.isoformat() if self.last_delivery_at else None,
             "last_delivery_status": self.last_delivery_status,
             "created_at":           self.created_at.isoformat(),

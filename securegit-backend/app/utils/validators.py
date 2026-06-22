@@ -1,10 +1,29 @@
 """Input validation helpers."""
 import re
+import os
+from pathlib import Path
 
 PROJECT_NAME_RE = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9\-]{0,98}[a-zA-Z0-9]$|^[a-zA-Z0-9]$')
 USERNAME_RE     = re.compile(r'^[a-zA-Z0-9][a-zA-Z0-9_\-]{1,48}[a-zA-Z0-9]$|^[a-zA-Z0-9]$')
 BRANCH_RE       = re.compile(r'^[a-zA-Z0-9._\-/]{1,255}$')
 EMAIL_RE        = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+
+class SecurityError(Exception):
+    pass
+
+def ensure_repo_path_safe(repo_path: str, repo_root: str) -> Path:
+    if not repo_root:
+        from ..config import config
+        repo_root = config["default"].GIT_REPOS_BASE
+
+    root = Path(repo_root).resolve()
+    candidate = Path(repo_path).resolve()
+
+    if candidate != root and root not in candidate.parents:
+        raise SecurityError("Repository path escapes configured repository root")
+
+    return candidate
 
 
 def validate_project_name(name: str) -> str | None:
@@ -35,9 +54,23 @@ def validate_branch_name(name: str) -> str | None:
         return "Branch name contains invalid character sequences."
     if name.endswith(".lock"):
         return "Branch name cannot end with .lock."
-    
+    if "refs/" in name or "refs/heads/" in name:
+        return "Branch name cannot contain refs/."
+    for char in ["~", "^", ":", "?", "*", "[", "\\"]:
+        if char in name:
+            return f"Branch name contains invalid character '{char}'."
+            
     if not BRANCH_RE.match(name):
         return "Branch name contains invalid characters."
+        
+    import subprocess
+    try:
+        res = subprocess.run(["git", "check-ref-format", "--branch", name], capture_output=True)
+        if res.returncode != 0:
+            return "Invalid branch name."
+    except Exception:
+        pass
+
     return None
 
 

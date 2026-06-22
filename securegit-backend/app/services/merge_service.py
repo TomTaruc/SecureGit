@@ -8,7 +8,6 @@ import os
 import shutil
 import subprocess
 import uuid
-import fcntl
 import json
 from contextlib import contextmanager
 from typing import Optional
@@ -42,17 +41,31 @@ def branch_lock(repo_path: str, target: str):
     """File-based lock for a specific target branch in a repository."""
     base = os.path.join(os.path.dirname(repo_path), ".locks")
     os.makedirs(base, exist_ok=True)
-    # create a safe filename for the lock
     safe_target = target.replace('/', '_')
     repo_id = os.path.basename(repo_path.rstrip('/'))
     lock_file = os.path.join(base, f"merge-{repo_id}-{safe_target}.lock")
     
     fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            locked_fcntl = True
+        except ImportError:
+            locked_fcntl = False
+            try:
+                import msvcrt
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            except Exception:
+                pass
         yield
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+        try:
+            if locked_fcntl:
+                import fcntl
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        except Exception:
+            pass
         os.close(fd)
 
 
@@ -68,7 +81,7 @@ def _cleanup_worktree(repo_path: str, tmp_dir: str):
         subprocess.run(
             ["git", "worktree", "remove", "--force", tmp_dir],
             cwd=repo_path, capture_output=True, shell=False,
-            user="git", group="git"
+            
         )
     except Exception:
         pass
@@ -76,7 +89,7 @@ def _cleanup_worktree(repo_path: str, tmp_dir: str):
         subprocess.run(
             ["git", "worktree", "prune"],
             cwd=repo_path, capture_output=True, shell=False,
-            user="git", group="git"
+            
         )
     except Exception:
         pass
@@ -170,18 +183,18 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
         subprocess.run(
             ["git", "worktree", "add", "--detach", tmp_dir, base_sha],
             cwd=repo_path, check=True, capture_output=True, shell=False,
-            user="git", group="git"
+            
         )
         result = subprocess.run(
             ["git", "merge", "--no-commit", "--no-ff", head_sha],
             cwd=tmp_dir, capture_output=True, text=True, shell=False,
-            user="git", group="git"
+            
         )
         if result.returncode != 0:
             status = subprocess.run(
                 ["git", "diff", "--name-only", "--diff-filter=U"],
                 cwd=tmp_dir, capture_output=True, text=True, shell=False,
-                user="git", group="git"
+                
             )
             for fname in status.stdout.splitlines():
                 fname = fname.strip()
@@ -197,7 +210,7 @@ def detect_conflicts(repo_path: str, base: str, head: str) -> list[dict]:
         subprocess.run(
             ["git", "merge", "--abort"],
             cwd=tmp_dir, capture_output=True, shell=False,
-            user="git", group="git"
+            
         )
     except Exception as e:
         logger.error("Conflict detection failed: %s", e)
@@ -235,7 +248,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str, user_id: int) -
             # Atomic update
             _run(repo_path, "update-ref", f"refs/heads/{target}", source_sha, target_sha)
             
-            handle_post_receive(repo_path, target_sha, source_sha, f"refs/heads/{target}")
+            handle_post_receive(repo_path, target_sha, source_sha, f"refs/heads/{target}", user_id)
             
             return {
                 "success": True, "ok": True, "strategy": "fast-forward",
@@ -244,7 +257,7 @@ def fast_forward_merge(repo_path: str, target: str, source: str, user_id: int) -
                 "message": "Fast-forward merge completed successfully."
             }
         except RuntimeError as e:
-            return {"success": False, "ok": False, "error": str(e)}
+            return {"success": False, "ok": False, "code": "MERGE_FAILED", "error": "Internal error occurred during merge execution."}
 
 
 def squash_merge(repo_path: str, target: str, source: str, message: str, user_id: int) -> dict:
@@ -262,21 +275,21 @@ def squash_merge(repo_path: str, target: str, source: str, message: str, user_id
             subprocess.run(
                 ["git", "worktree", "add", "--detach", tmp_dir, target_sha],
                 cwd=repo_path, check=True, capture_output=True, shell=False,
-                user="git", group="git"
+                
             )
-            subprocess.run(["git", "config", "user.name", "SecureGit"], cwd=tmp_dir, check=True, user="git", group="git")
-            subprocess.run(["git", "config", "user.email", "securegit@local"], cwd=tmp_dir, check=True, user="git", group="git")
+            subprocess.run(["git", "config", "user.name", "SecureGit"], cwd=tmp_dir, check=True, )
+            subprocess.run(["git", "config", "user.email", "securegit@local"], cwd=tmp_dir, check=True, )
             
             result = subprocess.run(
                 ["git", "merge", "--squash", source_sha],
                 cwd=tmp_dir, capture_output=True, text=True, shell=False,
-                user="git", group="git"
+                
             )
             if result.returncode != 0:
                 status = subprocess.run(
                     ["git", "diff", "--name-only", "--diff-filter=U"],
                     cwd=tmp_dir, capture_output=True, text=True, shell=False,
-                    user="git", group="git"
+                    
                 )
                 conflicting_files = [f.strip() for f in status.stdout.splitlines() if f.strip()]
                 return {
@@ -288,7 +301,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str, user_id
             subprocess.run(
                 ["git", "commit", "-m", message],
                 cwd=tmp_dir, check=True, capture_output=True, shell=False,
-                user="git", group="git"
+                
             )
             
             new_sha = _run(tmp_dir, "rev-parse", "HEAD").strip()
@@ -300,7 +313,7 @@ def squash_merge(repo_path: str, target: str, source: str, message: str, user_id
             # Atomic ref update
             _run(repo_path, "update-ref", f"refs/heads/{target}", new_sha, target_sha)
             
-            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}")
+            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}", user_id)
             
             return {
                 "success": True, "ok": True, "strategy": "squash",
@@ -309,7 +322,8 @@ def squash_merge(repo_path: str, target: str, source: str, message: str, user_id
                 "message": "Squash merge completed successfully."
             }
         except Exception as e:
-            return {"success": False, "ok": False, "error": str(e)}
+            logger.error("Squash merge failed: %s", e)
+            return {"success": False, "ok": False, "code": "MERGE_FAILED", "error": "Internal error occurred during squash merge execution."}
         finally:
             _cleanup_worktree(repo_path, tmp_dir)
 
@@ -331,25 +345,25 @@ def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict
             subprocess.run(
                 ["git", "worktree", "add", "--detach", tmp_dir, source_sha],
                 cwd=repo_path, check=True, capture_output=True, shell=False,
-                user="git", group="git"
+                
             )
-            subprocess.run(["git", "config", "user.name", "SecureGit"], cwd=tmp_dir, check=True, user="git", group="git")
-            subprocess.run(["git", "config", "user.email", "securegit@local"], cwd=tmp_dir, check=True, user="git", group="git")
+            subprocess.run(["git", "config", "user.name", "SecureGit"], cwd=tmp_dir, check=True, )
+            subprocess.run(["git", "config", "user.email", "securegit@local"], cwd=tmp_dir, check=True, )
             
             subprocess.run(
                 ["git", "checkout", "-B", branch_name, source_sha],
                 cwd=tmp_dir, check=True, capture_output=True, shell=False,
-                user="git", group="git"
+                
             )
             
             result = subprocess.run(
                 ["git", "rebase", "--onto", target_sha, merge_base_sha, branch_name],
                 cwd=tmp_dir, capture_output=True, text=True, shell=False,
-                user="git", group="git"
+                
             )
             
             if result.returncode != 0:
-                subprocess.run(["git", "rebase", "--abort"], cwd=tmp_dir, capture_output=True, shell=False, user="git", group="git")
+                subprocess.run(["git", "rebase", "--abort"], cwd=tmp_dir, capture_output=True, shell=False, )
                 return {
                     "success": False, "ok": False, "code": "MERGE_CONFLICT",
                     "message": "Rebase conflict detected.", "strategy": "rebase",
@@ -365,7 +379,7 @@ def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict
             # Atomic ref update
             _run(repo_path, "update-ref", f"refs/heads/{target}", new_sha, target_sha)
             
-            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}")
+            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}", user_id)
             
             return {
                 "success": True, "ok": True, "strategy": "rebase",
@@ -374,10 +388,11 @@ def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict
                 "message": "Rebase merge completed successfully."
             }
         except Exception as e:
-            return {"success": False, "ok": False, "error": str(e)}
+            logger.error("Rebase merge failed: %s", e)
+            return {"success": False, "ok": False, "code": "MERGE_FAILED", "error": "Internal error occurred during rebase merge execution."}
         finally:
             try:
-                subprocess.run(["git", "branch", "-D", branch_name], cwd=repo_path, capture_output=True, shell=False, user="git", group="git")
+                subprocess.run(["git", "branch", "-D", branch_name], cwd=repo_path, capture_output=True, shell=False, )
             except Exception:
                 pass
             _cleanup_worktree(repo_path, tmp_dir)

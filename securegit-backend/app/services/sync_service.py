@@ -8,12 +8,15 @@ from ..models.branch import Branch
 from ..models.commit import Commit
 from ..services import git_service
 
-def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str) -> dict:
+def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str, actor_user_id: int = None) -> dict:
     if not ref.startswith("refs/heads/"):
         return {"success": True, "message": "Non-branch ref, skipping.", "synced": 0}
     branch_name = ref[len("refs/heads/"):]
 
-    if not os.path.isabs(repo_path) or ".." in repo_path:
+    from ..utils.validators import ensure_repo_path_safe, SecurityError
+    try:
+        ensure_repo_path_safe(repo_path, "")
+    except SecurityError:
         raise ValueError("invalid_path")
 
     repo = Repository.query.filter_by(repo_path=repo_path).first()
@@ -64,17 +67,22 @@ def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str) -> d
         commits = []
 
     synced = 0
+    from dateutil import parser
     for c in commits:
         if Commit.query.filter_by(commit_hash=c["hash"]).first():
             continue
         author = User.query.filter_by(email=c["author_email"]).first()
+        try:
+            parsed_date = parser.parse(c["date"])
+        except Exception:
+            parsed_date = datetime.now(timezone.utc)
         commit = Commit(
             branch_id=branch.branch_id,
             author_id=author.user_id if author else project.owner_user_id,
             commit_hash=c["hash"],
             short_hash=c["short_hash"],
             message=c["message"],
-            committed_at=c["date"],
+            committed_at=parsed_date,
             parent_hash=c.get("parent_hash"),
         )
         db.session.add(commit)
@@ -82,10 +90,16 @@ def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str) -> d
 
     db.session.commit()
 
+    actor_username = "unknown"
+    if actor_user_id:
+        actor = User.query.get(actor_user_id)
+        if actor:
+            actor_username = actor.username
+
     from ..tasks import async_post_receive_task
     payload = {
         "project_id": project.project_id,
-        "username": "unknown", 
+        "username": actor_username, 
         "refs": [{
             "ref_name": ref,
             "old_sha": oldrev,

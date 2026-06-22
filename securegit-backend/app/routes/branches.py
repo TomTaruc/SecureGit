@@ -62,8 +62,10 @@ def create_branch(username, project_name, project, current_user):
     repo_path = _repo_path(project)
     try:
         git_service.git_create_branch(repo_path, new_branch, from_branch)
-    except (RuntimeError, ValueError) as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 400}), 400
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Branch creation failed: %s", e)
+        return jsonify({"error": "git_error", "message": "Failed to create branch.", "status": 400}), 400
 
     # Sync to branches table
     branch = Branch(repo_id=project.repository.repo_id, branch_name=new_branch)
@@ -90,8 +92,10 @@ def delete_branch(username, project_name, branch_name, project, current_user):
     repo_path = _repo_path(project)
     try:
         git_service.git_delete_branch(repo_path, branch_name)
-    except (RuntimeError, ValueError) as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 400}), 400
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("Branch deletion failed: %s", e)
+        return jsonify({"error": "git_error", "message": "Failed to delete branch.", "status": 400}), 400
 
     Branch.query.filter_by(repo_id=project.repository.repo_id, branch_name=branch_name).delete()
     db.session.commit()

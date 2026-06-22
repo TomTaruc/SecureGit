@@ -7,7 +7,7 @@ import useUIStore from '../../store/uiStore';
 import * as webhooksApi from '../../api/webhooks';
 
 export default function WebhooksTab() {
-  const { username, projectName } = useOutletContext();
+  const { username, projectName, project } = useOutletContext();
   const [webhooks, setWebhooks] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -80,6 +80,16 @@ export default function WebhooksTab() {
       toastError(err.response?.data?.message || err.response?.data?.error || 'Failed to test webhook');
     }
   };
+
+  const canManage = project?.can_manage_settings === true;
+
+  if (!canManage) {
+    return (
+      <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: 'var(--border)' }}>
+        You do not have permission to view or manage webhooks in this repository.
+      </div>
+    );
+  }
 
   return (
     <div>

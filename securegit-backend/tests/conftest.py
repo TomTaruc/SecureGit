@@ -1,7 +1,8 @@
 import os
-os.environ["TESTING"] = "1"
-import pytest
 import tempfile
+os.environ["TESTING"] = "1"
+os.environ["GIT_REPOS_BASE"] = tempfile.gettempdir()
+import pytest
 import shutil
 from flask_jwt_extended import create_access_token
 from app import create_app
@@ -21,6 +22,7 @@ def app():
     os.environ["JWT_SECRET_KEY"] = "test-jwt-secret"
     os.environ["INTERNAL_HOOK_SECRET"] = "test-hook-secret"
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+    os.environ["GIT_REPOS_BASE"] = tempfile.gettempdir()
 
     app = create_app()
     app.config.update({

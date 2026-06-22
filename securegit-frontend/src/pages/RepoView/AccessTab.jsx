@@ -91,11 +91,18 @@ export default function AccessTab() {
   const perms = ['read', 'write', 'admin'];
   const canManage = project?.can_manage_collaborators === true;
 
+  if (!canManage) {
+    return (
+      <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: 'var(--border)' }}>
+        You do not have permission to view or manage collaborators in this repository.
+      </div>
+    );
+  }
+
   return (
     <div>
-      {canManage && (
-        <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
-          <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
+      <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+        <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Add Collaborator</h2>
         <form onSubmit={handleAdd} style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, position: 'relative' }}>
             <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Search User</label>
