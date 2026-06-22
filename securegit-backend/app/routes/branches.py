@@ -131,6 +131,7 @@ def create_protection_rule(username, project_name, project, current_user):
         restrict_push=data.get("restrict_push", False),
         allowed_push_roles=data.get("allowed_push_roles", ["admin"]),
         require_admin_for_push=data.get("require_admin_for_push", False),
+        require_linear_history=data.get("require_linear_history", False),
     )
     db.session.add(rule)
     db.session.commit()
@@ -160,7 +161,7 @@ def create_protection_rule(username, project_name, project, current_user):
 def update_protection_rule(username, project_name, rule_id, project, current_user):
     rule = BranchProtectionRule.query.filter_by(rule_id=rule_id, repo_id=project.repository.repo_id).first_or_404()
     data = request.get_json(silent=True) or {}
-    for field in ("disable_force_push", "disable_deletion", "restrict_push", "allowed_push_roles", "require_admin_for_push"):
+    for field in ("disable_force_push", "disable_deletion", "restrict_push", "allowed_push_roles", "require_admin_for_push", "require_linear_history"):
         if field in data:
             setattr(rule, field, data[field])
     rule.updated_at = datetime.now(timezone.utc)

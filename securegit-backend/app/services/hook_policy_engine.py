@@ -13,6 +13,8 @@ class HookPolicyEngine:
         if not repo:
             return {"error": "Repository not found."}, 404
 
+        import re
+        ref = re.sub(r'/+', '/', ref)
         is_branch = ref.startswith("refs/heads/")
         branch_name = ref[len("refs/heads/"):] if is_branch else None
         
@@ -106,6 +108,23 @@ class HookPolicyEngine:
                 import logging
                 logging.getLogger(__name__).error("merge-base ancestor check failed unexpectedly: %s", e)
                 return f"Unable to verify push safety for '{branch_name}'; push rejected as a precaution.", 403
+
+        if not is_delete and not is_new and matched_rule.require_linear_history:
+            sub_env = os.environ.copy()
+            if git_env:
+                for k, v in git_env.items():
+                    if v:
+                        sub_env[k] = v
+            try:
+                out = subprocess.run(
+                    ["git", "rev-list", "--merges", f"{oldrev}..{newrev}"],
+                    cwd=repo_path, check=True, capture_output=True, text=True,
+                    env=sub_env, user="git", group="git",
+                ).stdout
+                if out.strip():
+                    return f"Linear history required: merge commits are not allowed on '{branch_name}'.", 403
+            except Exception:
+                pass
 
         return None, 200
 

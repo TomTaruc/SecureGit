@@ -1,0 +1,434 @@
+<USER_REQUEST>
+# SecureGit — Root Cause Analysis & Fix Prompt
+
+This document is a complete, code-verified remediation plan for the 10 bugs described in
+`SECUREGIT_AUDIT.md`. Every root cause below was confirmed by reading the actual source files
+in this repo — not guessed from the bug report. File paths and line-level fixes are exact.
+
+Hand this whole document to your coding agent as the task brief.
+
+---
+
+## BUG 1 — Collaborators don't see their repos on the dashboard
+
+**Severity:** High
+**Root cause confirmed in:** `securegit-backend/app/routes/dashboard.py`
+
+The `/api/dashboard/stats` endpoint computes `total_projects` by checking
+`Collaborator.query.filter_by(user_id=user_id)` — that part is correct. **But**
+`securegit-frontend/src/pages/DashboardPage.jsx` and `ProjectsPage.jsx` both render from
+`projectsApi.listProjects()`, which calls `GET /api/projects`. That route
+(`securegit-backend/app/routes/projects.py`, `list_projects()`) **is already correct**:
+
+```python
+owned = Project.query.filter(Project.owner_user_id == user_id, Project.deleted_at.is_(None)).all()
+collaborated_ids = [c.project_id for c in Collaborator.query.filter_by(user_id=user_id).all()]
+collaborated = Project.query.filter(
+    Project.project_id.in_(collaborated_ids),
+    Project.owner_user_id != user_id,
+    Project.deleted_at.is_(None)
+).all()
+all_projects = owned + collaborated
+```
+
+This logic is sound. **The actual defect is in `require_project_access` permission resolution**,
+not visibility. Look at `securegit-backend/app/utils/rbac.py` → `check_permission()`:
+
+```python
+def check_permission(user: User, project: Project, perm: str) -> bool:
+    if user.role == "admin":
+        return True
+    if project.owner_user_id == user.user_id:
+        return True
+    collab = get_actor_permission(user, project)
+    if collab is None:
+        return False
+    return collab.has_permission(perm)
+```
+
+This is correct too — **so the dashboard listing bug is not reproducible from the code as
+w
+<truncated 45214 bytes>
+ns = data["permissions"]
+    # Keep legacy `permission` column in sync so any code still reading it
+    # (e.g. HookPolicyEngine prior to the Bug 7 fix, or future code) doesn't desync.
+    if data["permissions"].get("admin"):
+        collab.permission = "admin"
+    elif data["permissions"].get("push"):
+        collab.permission = "write"
+    else:
+        collab.permission = "read"
+```
+
+Apply the same sync in `add_collaborator()`'s custom-permissions branch:
+```python
+permissions = custom_permissions if custom_permissions else PERMISSION_PRESETS.get(permission_level, PERMISSION_PRESETS["read"])
+if custom_permissions:
+    if custom_permissions.get("admin"):
+        permission_level = "admin"
+    elif custom_permissions.get("push"):
+        permission_level = "write"
+    else:
+        permission_level = "read"
+```
+
+---
+
+## Migration Steps Required
+
+No schema changes are needed — all fixes are application-logic and infrastructure-config only.
+
+1. Deploy the `merge_service.py` worktree-path change (Bug 3/4) and the
+   `securegit-flask.service` `PrivateTmp` removal **together** — restart the systemd service
+   (`sudo systemctl restart securegit-flask`) after editing the unit file, then
+   `sudo systemctl daemon-reload` first since unit files changed.
+2. Run `sudo mkdir -p /srv/git/.worktrees-base-check` once after deploy to confirm `git:git` can
+   write under each repo's parent directory in production (sanity check before relying on the
+   new worktree path in prod).
+3. No data migration needed for the `permission`/`permissions` sync fix — it only affects
+   future writes. Optionally run a one-off backfill script to resync existing rows:
+
+```python
+# one-off backfill — run via flask shell or a script
+from app.models.collaborator import Collaborator
+from app.extensions import db
+
+for c in Collaborator.query.all(
+<truncated 4644 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.
+
+=====
+
+<USER_REQUEST>
+# SecureGit — Root Cause Analysis & Fix Prompt
+
+This document is a complete, code-verified remediation plan for the 10 bugs described in
+`SECUREGIT_AUDIT.md`. Every root cause below was confirmed by reading the actual source files
+in this repo — not guessed from the bug report. File paths and line-level fixes are exact.
+
+Hand this whole document to your coding agent as the task brief.
+
+---
+
+## BUG 1 — Collaborators don't see their repos on the dashboard
+
+**Severity:** High
+**Root cause confirmed in:** `securegit-backend/app/routes/dashboard.py`
+
+The `/api/dashboard/stats` endpoint computes `total_projects` by checking
+`Collaborator.query.filter_by(user_id=user_id)` — that part is correct. **But**
+`securegit-frontend/src/pages/DashboardPage.jsx` and `ProjectsPage.jsx` both render from
+`projectsApi.listProjects()`, which calls `GET /api/projects`. That route
+(`securegit-backend/app/routes/projects.py`, `list_projects()`) **is already correct**:
+
+```python
+owned = Project.query.filter(Project.owner_user_id == user_id, Project.deleted_at.is_(None)).all()
+collaborated_ids = [c.project_id for c in Collaborator.query.filter_by(user_id=user_id).all()]
+collaborated = Project.query.filter(
+    Project.project_id.in_(collaborated_ids),
+    Project.owner_user_id != user_id,
+    Project.deleted_at.is_(None)
+).all()
+all_projects = owned + collaborated
+```
+
+This logic is sound. **The actual defect is in `require_project_access` permission resolution**,
+not visibility. Look at `securegit-backend/app/utils/rbac.py` → `check_permission()`:
+
+```python
+def check_permission(user: User, project: Project, perm: str) -> bool:
+    if user.role == "admin":
+        return True
+    if project.owner_user_id == user.user_id:
+        return True
+    collab = get_actor_permission(user, project)
+    if collab is None:
+        return False
+    return collab.has_permission(perm)
+```
+
+This is correct too — **so the dashboard listing bug is not reproducible from the code as
+w
+<truncated 45214 bytes>
+ns = data["permissions"]
+    # Keep legacy `permission` column in sync so any code still reading it
+    # (e.g. HookPolicyEngine prior to the Bug 7 fix, or future code) doesn't desync.
+    if data["permissions"].get("admin"):
+        collab.permission = "admin"
+    elif data["permissions"].get("push"):
+        collab.permission = "write"
+    else:
+        collab.permission = "read"
+```
+
+Apply the same sync in `add_collaborator()`'s custom-permissions branch:
+```python
+permissions = custom_permissions if custom_permissions else PERMISSION_PRESETS.get(permission_level, PERMISSION_PRESETS["read"])
+if custom_permissions:
+    if custom_permissions.get("admin"):
+        permission_level = "admin"
+    elif custom_permissions.get("push"):
+        permission_level = "write"
+    else:
+        permission_level = "read"
+```
+
+---
+
+## Migration Steps Required
+
+No schema changes are needed — all fixes are application-logic and infrastructure-config only.
+
+1. Deploy the `merge_service.py` worktree-path change (Bug 3/4) and the
+   `securegit-flask.service` `PrivateTmp` removal **together** — restart the systemd service
+   (`sudo systemctl restart securegit-flask`) after editing the unit file, then
+   `sudo systemctl daemon-reload` first since unit files changed.
+2. Run `sudo mkdir -p /srv/git/.worktrees-base-check` once after deploy to confirm `git:git` can
+   write under each repo's parent directory in production (sanity check before relying on the
+   new worktree path in prod).
+3. No data migration needed for the `permission`/`permissions` sync fix — it only affects
+   future writes. Optionally run a one-off backfill script to resync existing rows:
+
+```python
+# one-off backfill — run via flask shell or a script
+from app.models.collaborator import Collaborator
+from app.extensions import db
+
+for c in Collaborator.query.all(
+<truncated 4644 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.
+
+=====
+
+<USER_REQUEST>
+how to run this locally 
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-22T11:53:08+08:00.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\entrypoint.sh (LANGUAGE_SHELL)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\app\routes\dashboard.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\sync.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-frontend\src\pages\RepoView\WebhooksTab.jsx (LANGUAGE_JAVASCRIPT)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\test_err.py (LANGUAGE_PYTHON)
+</ADDITIONAL_METADATA>
+
+=====
+
+<USER_REQUEST>
+`https://securegit.local`https://securegit.local i cannot run this
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-22T11:53:59+08:00.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\motar\SecureGit\SecureGit\securegit-frontend\src\pages\RepoView\WebhooksTab.jsx (LANGUAGE_JAVASCRIPT)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\test_err.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\check_db.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\app\routes\internal.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-frontend\src\pages\RepoView\AccessTab.jsx (LANGUAGE_JAVASCRIPT)
+</ADDITIONAL_METADATA>
+
+=====
+
+<USER_REQUEST>
+# SecureGit Comprehensive Regression Audit & Remediation Request
+
+You previously reported that multiple issues were fixed. After rebuilding, redeploying, and performing a complete retest, many of the reported issues are still reproducible.
+
+Do NOT assume any previous fix was successfully applied.
+
+Perform a fresh code audit of the current codebase and verify behavior against the latest implementation before making any changes.
+
+## Required Approach
+
+1. Audit the entire codebase.
+2. Identify root causes for each issue.
+3. Verify both frontend and backend authorization.
+4. Verify Git operations using actual repositories.
+5. Verify repository permissions using actual collaborator accounts.
+6. Verify dashboard data aggregation.
+7. Verify merge execution logic.
+8. Verify webhook functionality.
+9. Produce a remediation plan.
+10. Implement fixes.
+11. Re-run validation against all test cases.
+12. Provide a detailed changelog of every modified file.
+
+---
+
+# BUG GROUP 1 — COLLABORATOR ACCESS CONTROL
+
+## ACCESS-004 (Still Reproducible)
+
+Severity: High
+
+Repository:
+user1/test2
+
+Collaborator:
+user222
+
+Role:
+read
+
+Page:
+`/user1/test2/access`
+
+### Actual
+
+Read-only collaborator can still see:
+
+* Add Collaborator form
+* Username search box
+* Role dropdown
+* Add button
+* Collaborator role modification dropdown
+* Remove button
+
+### Expected
+
+Read-only collaborator should:
+
+* View collaborator list only
+* Not see Add Collaborator controls
+* Not see role dropdowns
+* Not see Remove buttons
+* Not be able to manage collaborators
+
+### Required Investigation
+
+Audit:
+
+* Access page rendering logic
+* Repository permission checks
+* Frontend permission guards
+* Backend authorization middleware
+* Collaborator APIs
+
+Verify both frontend and backend enforcement.
+
+---
+
+## ACCESS-005
+
+Severity: High
+
+### Actual
+
+Read-only collaborator can access collaborator-management UI.
+
+### Expected
+
+Only:
+
+* Owner
+* manage_collaborators role
+
+should 
+<truncated 3161 bytes>
+owed."
+
+Determine whether this is:
+
+* Intended behavior
+* Security restriction
+* Misconfiguration
+
+Document findings.
+
+---
+
+## WEBHOOK-005
+
+Verify localhost webhooks execute successfully.
+
+---
+
+# ADDITIONAL REQUIRED AUDIT
+
+Perform a full review of:
+
+## Repository Visibility
+
+Verify collaborators:
+
+* See repositories they have access to
+* Cannot see repositories they should not access
+
+---
+
+## Permission Enforcement
+
+Verify:
+
+read
+push
+manage_collaborators
+manage_settings
+admin
+
+are consistently enforced across:
+
+* Dashboard
+* Repository pages
+* Access page
+* Protection page
+* Webhooks page
+* Merge page
+* Git operations
+* API endpoints
+
+---
+
+## Backend Security Review
+
+Audit all repository-related endpoints for:
+
+* Missing authorization checks
+* Owner-only actions
+* Role escalation vulnerabilities
+* Permission bypasses
+
+---
+
+## Frontend Security Review
+
+Audit all pages for:
+
+* Missing UI guards
+* Unauthorized controls rendered to low-privilege users
+* Incorrect role detection
+
+---
+
+# Required Deliverables
+
+Provide:
+
+1. Root cause analysis for each issue.
+2. List of affected files.
+3. Exact fixes implemented.
+4. Migration steps if needed.
+5. Test results after fixes.
+6. Final PASS/FAIL matrix.
+
+Do not mark any issue as fixed until verified through actual execution and testing. FIX EVERYTHING!!!!
+
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-06-22T12:03:47+08:00.
+
+The user's current state is as follows:
+Other open documents:
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\test_merge_api.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\entrypoint.sh (LANGUAGE_SHELL)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\app\routes\dashboard.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-backend\sync.py (LANGUAGE_PYTHON)
+- c:\Users\motar\SecureGit\SecureGit\securegit-frontend\src\pages\RepoView\WebhooksTab.jsx (LANGUAGE_JAVASCRIPT)
+</ADDITIONAL_METADATA>

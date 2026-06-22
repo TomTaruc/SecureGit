@@ -108,6 +108,10 @@ export default function ProtectionTab() {
                   <input type="checkbox" checked={r.require_admin_for_push} onChange={e => handleUpdate(r.rule_id, 'require_admin_for_push', e.target.checked)} />
                   Require Admin for Push
                 </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-sm)' }}>
+                  <input type="checkbox" checked={r.require_linear_history} onChange={e => handleUpdate(r.rule_id, 'require_linear_history', e.target.checked)} />
+                  Require Linear History
+                </label>
               </div>
               {r.restrict_push && (
                 <div style={{ marginTop: 'var(--space-4)' }}>

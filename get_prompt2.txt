@@ -1,0 +1,13 @@
+Created At: 2026-06-22T04:11:41Z
+Completed At: 2026-06-22T04:11:41Z
+
+				The command failed with exit code: 1
+				Output:
+				At line:1 char:244
++ ... ript.jsonl') if 'USER_INPUT' in line][-1]" > get_prompt.py && python  ...
++                                                                ~~
+The token '&&' is not a valid statement separator in this version.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : InvalidEndOfLine
+ 
+

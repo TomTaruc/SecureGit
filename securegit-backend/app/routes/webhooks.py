@@ -43,7 +43,7 @@ def create_webhook(username, project_name, project, current_user):
     if invalid_events:
         return jsonify({"error": "validation_error", "message": f"Invalid events: {invalid_events}. Valid: {VALID_EVENTS}", "status": 422}), 422
 
-    secret_hash = hashlib.sha256(secret.encode()).hexdigest() if secret else None
+    secret_hash = secret if secret else None
 
     hook = WebhookEndpoint(
         project_id=project.project_id,

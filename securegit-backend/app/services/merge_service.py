@@ -25,6 +25,10 @@ def _worktree_dir(repo_path: str) -> str:
         os.chown(base, git_pwd.pw_uid, git_pwd.pw_gid)
     except Exception:
         pass
+    try:
+        os.chmod(base, 0o777)
+    except Exception:
+        pass
     return os.path.join(base, f"wt-{uuid.uuid4().hex}")
 
 

@@ -34,7 +34,7 @@ export default function WebhooksTab() {
     if (!name || !targetUrl) return;
     setAdding(true);
     try {
-      await webhooksApi.createWebhook(username, projectName, { name, target_url: targetUrl, secret });
+      await webhooksApi.createWebhook(username, projectName, { name, target_url: targetUrl, secret, events: ['push'] });
       toastSuccess('Webhook created');
       setName('');
       setTargetUrl('');

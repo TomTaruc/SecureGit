@@ -25,15 +25,17 @@ def stats():
 
     collaborated_ids = [c.project_id for c in db.session.query(Collaborator).filter_by(user_id=user_id).all()]
     
+    owned_count = Project.query.filter(Project.owner_user_id == user_id, Project.deleted_at.is_(None)).count()
     if collaborated_ids:
-        total_projects = Project.query.filter(db.or_(Project.owner_user_id == user_id, Project.project_id.in_(collaborated_ids)), Project.deleted_at.is_(None)).count()
+        collab_count = Project.query.filter(Project.project_id.in_(collaborated_ids), Project.owner_user_id != user_id, Project.deleted_at.is_(None)).count()
+        total_projects = owned_count + collab_count
         commits_today = db.session.query(Commit).join(Commit.branch).join(Branch.repository).join(Repository.project).filter(
             db.or_(Project.owner_user_id == user_id, Project.project_id.in_(collaborated_ids)),
             Project.deleted_at.is_(None),
             Commit.committed_at >= today_start
         ).count()
     else:
-        total_projects = Project.query.filter_by(owner_user_id=user_id).filter(Project.deleted_at.is_(None)).count()
+        total_projects = owned_count
         commits_today = db.session.query(Commit).join(Commit.branch).join(Branch.repository).join(Repository.project).filter(
             Project.owner_user_id == user_id,
             Project.deleted_at.is_(None),

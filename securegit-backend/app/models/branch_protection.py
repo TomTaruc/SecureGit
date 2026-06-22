@@ -13,6 +13,7 @@ class BranchProtectionRule(db.Model):
     restrict_push         = db.Column(db.Boolean, nullable=False, default=False)
     allowed_push_roles    = db.Column(db.JSON, nullable=False, default=lambda: ["admin"])
     require_admin_for_push= db.Column(db.Boolean, nullable=False, default=False)
+    require_linear_history= db.Column(db.Boolean, nullable=False, default=False)
     created_at            = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at            = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
@@ -30,6 +31,7 @@ class BranchProtectionRule(db.Model):
             "restrict_push":          self.restrict_push,
             "allowed_push_roles":     self.allowed_push_roles,
             "require_admin_for_push": self.require_admin_for_push,
+            "require_linear_history": self.require_linear_history,
             "created_at":             self.created_at.isoformat(),
             "updated_at":             self.updated_at.isoformat(),
         }

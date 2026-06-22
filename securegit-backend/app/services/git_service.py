@@ -239,16 +239,18 @@ def git_show_stat(repo_path: str, commit_hash: str) -> dict:
     parts = meta_line.split("|", 6)
 
     # Stat
-    stat_out = _run(repo_path, "show", "--stat", "--format=", h)
+    stat_out = _run(repo_path, "show", "--numstat", "--format=", h)
     files_changed = []
     total_add = 0
     total_del = 0
     for line in stat_out.splitlines():
         line = line.strip()
-        if "|" in line and ("+" in line or "-" in line):
-            fname = line.split("|")[0].strip()
-            add = line.count("+")
-            delete = line.count("-")
+        if not line: continue
+        parts = line.split("\t")
+        if len(parts) == 3:
+            add_str, del_str, fname = parts
+            add = int(add_str) if add_str != "-" else 0
+            delete = int(del_str) if del_str != "-" else 0
             files_changed.append({"file": fname, "added": add, "deleted": delete})
             total_add += add
             total_del += delete
