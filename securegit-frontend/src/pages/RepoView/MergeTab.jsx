@@ -90,119 +90,127 @@ function MergeTabContent() {
 
   return (
     <div>
-      <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Base branch</label>
-            <select
-              value={base} onChange={e => setBase(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-            >
-              {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
-            </select>
-          </div>
-          <span style={{ marginTop: '20px', color: 'var(--color-text-muted)' }}>←</span>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Compare branch</label>
-            <select
-              value={head} onChange={e => setHead(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
-            >
-              <option value="">Select branch...</option>
-              {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
-            </select>
-          </div>
+      {!project?.can_push ? (
+        <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: 'var(--border)' }}>
+          You do not have permission to merge branches in this repository.
         </div>
-      </div>
-
-      {loading && <div style={{ padding: 'var(--space-4)' }}><Skeleton height="40px" style={{ marginBottom: '10px' }}/><Skeleton height="200px" /></div>}
-
-      {!loading && compareData && (
+      ) : (
         <div>
-          {/* Status Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-5)' }}>
+          <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', padding: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Base branch</label>
+                <select
+                  value={base} onChange={e => setBase(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+                >
+                  {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
+                </select>
+              </div>
+              <span style={{ marginTop: '20px', color: 'var(--color-text-muted)' }}>←</span>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>Compare branch</label>
+                <select
+                  value={head} onChange={e => setHead(e.target.value)}
+                  style={{ width: '100%', padding: '8px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' }}
+                >
+                  <option value="">Select branch...</option>
+                  {safeBranches.map((b, i) => <option key={b?.name || i} value={b?.name || ''}>{b?.name || 'Unknown'}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {loading && <div style={{ padding: 'var(--space-4)' }}><Skeleton height="40px" style={{ marginBottom: '10px' }}/><Skeleton height="200px" /></div>}
+
+          {!loading && compareData && (
             <div>
-              {hasConflicts ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Badge variant="error">✕ Conflicts Detected</Badge>
-                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Cannot merge automatically.</span>
+              {/* Status Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-4) var(--space-5)', background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-5)' }}>
+                <div>
+                  {hasConflicts ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Badge variant="error">✕ Conflicts Detected</Badge>
+                      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>Cannot merge automatically.</span>
+                    </div>
+                  ) : commits.length === 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Badge variant="info">✓ Up to date</Badge>
+                      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>There are no commits to merge.</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Badge variant="success">
+                        ✓ {ffPossible ? "Fast-forward available" : "Fast-forward unavailable: branches have diverged"}
+                      </Badge>
+                      <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
+                    </div>
+                  )}
                 </div>
-              ) : commits.length === 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Badge variant="info">✓ Up to date</Badge>
-                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>There are no commits to merge.</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Badge variant="success">
-                    ✓ {ffPossible ? "Fast-forward available" : "Fast-forward unavailable: branches have diverged"}
-                  </Badge>
-                  <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
+
+                {commits.length > 0 && !hasConflicts && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <select
+                      value={strategy} onChange={e => setStrategy(e.target.value)}
+                      style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
+                    >
+                      {ffPossible && <option value="ff">Fast-forward</option>}
+                      {squashPossible && <option value="squash">Squash and Merge</option>}
+                      {rebasePossible && <option value="rebase">Rebase and Merge</option>}
+                    </select>
+                    <Button variant="success" loading={merging} onClick={handleMerge}>
+                      Merge Branch
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Commits List */}
+              {commits.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Commits ({commits.length})</h3>
+                  <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                    {commits.map((c, i) => (
+                      <div key={c?.hash || i} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < commits.length - 1 ? 'var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '500', color: 'var(--color-text-primary)' }}>{c?.message || 'No commit message'}</div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.author || 'Unknown'} · {c?.date || ''}</div>
+                        </div>
+                        <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.short_hash || ''}</code>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
-            </div>
 
-            {commits.length > 0 && !hasConflicts && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                <select
-                  value={strategy} onChange={e => setStrategy(e.target.value)}
-                  style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
-                >
-                  {ffPossible && <option value="ff">Fast-forward</option>}
-                  {squashPossible && <option value="squash">Squash and Merge</option>}
-                  {rebasePossible && <option value="rebase">Rebase and Merge</option>}
-                </select>
-                <Button variant="success" loading={merging} onClick={handleMerge}>
-                  Merge Branch
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Commits List */}
-          {commits.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-6)' }}>
-              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Commits ({commits.length})</h3>
-              <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                {commits.map((c, i) => (
-                  <div key={c?.hash || i} style={{ padding: 'var(--space-3) var(--space-5)', borderBottom: i < commits.length - 1 ? 'var(--border)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: '500', color: 'var(--color-text-primary)' }}>{c?.message || 'No commit message'}</div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.author || 'Unknown'} · {c?.date || ''}</div>
-                    </div>
-                    <code style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{c?.short_hash || ''}</code>
+              {/* Conflict List */}
+              {hasConflicts && conflictList.length > 0 && (
+                <div style={{ marginBottom: 'var(--space-6)' }}>
+                  <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Conflicting Files</h3>
+                  <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-error)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                    {conflictList.map((c, i) => (
+                      <div key={i} style={{ borderBottom: i < conflictList.length - 1 ? 'var(--border)' : 'none' }}>
+                        <div style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)', fontWeight: '500' }}>
+                          {c?.file || 'Unknown file'}
+                        </div>
+                        {c?.content && (
+                          <pre style={{ margin: 0, padding: 'var(--space-3) var(--space-5)', background: 'var(--color-surface-2)', borderTop: 'var(--border)', fontSize: '11px', color: 'var(--color-text-muted)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
+                            {c.content}
+                          </pre>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Conflict List */}
-          {hasConflicts && conflictList.length > 0 && (
-            <div style={{ marginBottom: 'var(--space-6)' }}>
-              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Conflicting Files</h3>
-              <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-error)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                {conflictList.map((c, i) => (
-                  <div key={i} style={{ borderBottom: i < conflictList.length - 1 ? 'var(--border)' : 'none' }}>
-                    <div style={{ padding: 'var(--space-3) var(--space-5)', fontSize: 'var(--font-size-sm)', fontFamily: 'var(--font-mono)', fontWeight: '500' }}>
-                      {c?.file || 'Unknown file'}
-                    </div>
-                    {c?.content && (
-                      <pre style={{ margin: 0, padding: 'var(--space-3) var(--space-5)', background: 'var(--color-surface-2)', borderTop: 'var(--border)', fontSize: '11px', color: 'var(--color-text-muted)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-                        {c.content}
-                      </pre>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Diff */}
-          {diffs.length > 0 && (
-            <div>
-              <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Changes</h3>
-              <DiffViewer fileDiffs={diffs} />
+              {/* Diff */}
+              {diffs.length > 0 && (
+                <div>
+                  <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-3)' }}>Changes</h3>
+                  <DiffViewer fileDiffs={diffs} />
+                </div>
+              )}
             </div>
           )}
         </div>

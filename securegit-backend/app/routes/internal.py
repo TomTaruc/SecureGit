@@ -83,100 +83,16 @@ def post_receive():
     if not repo_path or not newrev or not ref:
         return jsonify({"error": "missing_fields"}), 400
 
-    # Extract branch name from ref
-    if not ref.startswith("refs/heads/"):
-        return jsonify({"message": "Non-branch ref, skipping."}), 200
-    branch_name = ref[len("refs/heads/"):]
-
-    import os
-    if not os.path.isabs(repo_path) or ".." in repo_path:
-        return jsonify({"error": "invalid_path"}), 400
-
-    # Find repository record by path
-    repo = Repository.query.filter_by(repo_path=repo_path).first()
-    if not repo:
-        return jsonify({"error": "repo_not_found"}), 404
-
-    project = repo.project
-    repo.project.updated_at = datetime.now(timezone.utc)
-
-    # Ensure branch record exists
-    is_first_branch = Branch.query.filter_by(repo_id=repo.repo_id).count() == 0
-    branch = Branch.query.filter_by(repo_id=repo.repo_id, branch_name=branch_name).first()
-    if not branch:
-        is_default = is_first_branch or (branch_name == project.default_branch)
-        branch = Branch(
-            repo_id=repo.repo_id,
-            branch_name=branch_name,
-            is_default=is_default,
-        )
-        db.session.add(branch)
-        db.session.flush()
-
-        if is_first_branch:
-            project.default_branch = branch_name
-            try:
-                git_service.git_set_default_branch(repo_path, branch_name)
-            except Exception:
-                pass
-
-    # Sync new commits
+    from ..services.sync_service import handle_post_receive
     try:
-        if oldrev == "0" * 40:
-            # New branch: get all commits on this branch
-            commits = git_service.git_log(repo_path, branch_name, limit=100)
-        else:
-            # Incremental: get commits between oldrev..newrev
-            raw = git_service._run(repo_path, "log",
-                f"{oldrev}..{newrev}",
-                f"--format={git_service.LOG_FORMAT}",
-            )
-            commits = []
-            for line in raw.splitlines():
-                parts = line.split("|", 6)
-                if len(parts) >= 6:
-                    commits.append({
-                        "hash": parts[0], "short_hash": parts[1],
-                        "author_name": parts[2], "author_email": parts[3],
-                        "message": parts[4], "date": parts[5],
-                        "parent_hash": parts[6] if len(parts) > 6 else None,
-                    })
-    except RuntimeError:
-        commits = []
-
-    synced = 0
-    for c in commits:
-        if Commit.query.filter_by(commit_hash=c["hash"]).first():
-            continue
-        author = User.query.filter_by(email=c["author_email"]).first()
-        commit = Commit(
-            branch_id=branch.branch_id,
-            author_id=author.user_id if author else project.owner_user_id,
-            commit_hash=c["hash"],
-            short_hash=c["short_hash"],
-            message=c["message"],
-            committed_at=c["date"],
-            parent_hash=c.get("parent_hash"),
-        )
-        db.session.add(commit)
-        synced += 1
-
-    db.session.commit()
-
-    # Dispatch internal webhooks via Celery
-    from ..tasks import async_post_receive_task
-    payload = {
-        "project_id": project.project_id,
-        "username": "unknown", # Could be fetched from db if user_id was passed
-        "refs": [{
-            "ref_name": ref,
-            "old_sha": oldrev,
-            "new_sha": newrev
-        }]
-    }
-    async_post_receive_task.delay(payload)
-
-    return jsonify({"message": f"Synced {synced} commits on {branch_name}."}), 200
+        result = handle_post_receive(repo_path, oldrev, newrev, ref)
+        return jsonify({"message": result.get("message")}), 200
+    except ValueError as e:
+        if str(e) == "invalid_path":
+            return jsonify({"error": "invalid_path"}), 400
+        elif str(e) == "repo_not_found":
+            return jsonify({"error": "repo_not_found"}), 404
+        return jsonify({"error": str(e)}), 500
 
 @internal_bp.post("/hook/pre-receive")
 def pre_receive():

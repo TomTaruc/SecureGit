@@ -88,7 +88,7 @@ export default function AccessTab() {
     }
   };
 
-  const perms = ['read', 'push', 'manage_collaborators', 'manage_settings', 'admin'];
+  const perms = ['read', 'write', 'admin'];
   const canManage = project?.can_manage_collaborators === true;
 
   return (

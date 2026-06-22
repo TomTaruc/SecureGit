@@ -32,7 +32,7 @@ export default function RepoLayout() {
     { label: 'Commits',  to: `/${username}/${projectName}/commits` },
     { label: 'Branches', to: `/${username}/${projectName}/branches` },
     { label: 'Access',   to: `/${username}/${projectName}/access`, show: project?.can_manage_collaborators },
-    { label: 'Merge',    to: `/${username}/${projectName}/merge` },
+    { label: 'Merge',    to: `/${username}/${projectName}/merge`, show: project?.can_push },
     { label: 'Protection', to: `/${username}/${projectName}/protection`, show: project?.can_manage_settings },
     { label: 'Webhooks',   to: `/${username}/${projectName}/webhooks`, show: project?.can_manage_settings },
   ].filter(t => t.show === undefined || t.show);

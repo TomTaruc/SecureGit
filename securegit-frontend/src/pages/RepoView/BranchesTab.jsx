@@ -56,20 +56,22 @@ export default function BranchesTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', alignItems: 'flex-end' }}>
-        <form onSubmit={handleCreate} style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, maxWidth: '400px' }}>
-          <Input
-            id="new-branch"
-            placeholder="New branch name"
-            value={newBranch}
-            onChange={e => setNewBranch(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <Button type="submit" loading={creating} disabled={!newBranch}>
-            Create Branch
-          </Button>
-        </form>
-      </div>
+      {project?.can_create_branch && (
+        <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-6)', alignItems: 'flex-end' }}>
+          <form onSubmit={handleCreate} style={{ display: 'flex', gap: 'var(--space-2)', flex: 1, maxWidth: '400px' }}>
+            <Input
+              id="new-branch"
+              placeholder="New branch name"
+              value={newBranch}
+              onChange={e => setNewBranch(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <Button type="submit" loading={creating} disabled={!newBranch}>
+              Create Branch
+            </Button>
+          </form>
+        </div>
+      )}
 
       <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
         {loading ? (
@@ -94,7 +96,7 @@ export default function BranchesTab() {
                     {b.hash.slice(0, 7)}
                   </code>
                 )}
-                {!b.is_default && (
+                {!b.is_default && project?.can_delete_branch && (
                   <Button variant="danger" size="sm" onClick={() => handleDelete(b.name)}>
                     Delete
                   </Button>

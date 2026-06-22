@@ -71,10 +71,10 @@ export default function WebhooksTab() {
   const handleTest = async (webhookId) => {
     try {
       const res = await webhooksApi.testWebhook(username, projectName, webhookId);
-      if (res.data.delivery_status >= 200 && res.data.delivery_status < 300) {
-        toastSuccess(`Webhook test successful (HTTP ${res.data.delivery_status})`);
+      if (res.data.ok) {
+        toastSuccess(res.data.message || 'Webhook test successful');
       } else {
-        toastError(`Webhook test failed: ${res.data.error_message || 'HTTP ' + res.data.delivery_status}`);
+        toastError(`${res.data.code || 'ERROR'}: ${res.data.message || 'Test failed'}`);
       }
     } catch (err) {
       toastError(err.response?.data?.message || err.response?.data?.error || 'Failed to test webhook');

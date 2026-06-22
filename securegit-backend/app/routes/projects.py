@@ -122,13 +122,31 @@ def create_project():
     return jsonify(project.to_dict()), 201
 
 
+from ..utils.rbac import check_manage_collaborators, check_manage_settings, check_push_permission
+
 @projects_bp.get("/<username>/<project_name>")
 @jwt_required()
 @require_project_access("read")
 def get_project(username, project_name, project, current_user):
     data = project.to_dict()
+    data["is_owner"] = current_user.user_id == project.owner_user_id
+    data["can_push"] = check_push_permission(current_user, project)
     data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
     data["can_manage_settings"] = check_manage_settings(current_user, project)
+    
+    if data["is_owner"]:
+        data["can_create_branch"] = True
+        data["can_delete_branch"] = True
+    else:
+        from ..models.collaborator import Collaborator
+        collab = Collaborator.query.filter_by(project_id=project.project_id, user_id=current_user.user_id).first()
+        if collab:
+            data["can_create_branch"] = collab.has_permission("create_branch")
+            data["can_delete_branch"] = collab.has_permission("delete_branch")
+        else:
+            data["can_create_branch"] = False
+            data["can_delete_branch"] = False
+
     return jsonify(data), 200
 
 

@@ -16,6 +16,8 @@ from .git_service import (
     _safe_ref, _run, git_rev_list_count, git_merge_base,
     git_diff_branches, git_is_ancestor,
 )
+from .hook_policy_engine import HookPolicyEngine
+from .sync_service import handle_post_receive
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,9 @@ def compare_branches(repo_path: str, base: str, head: str) -> dict:
 
     ff_possible = git_is_ancestor(repo_path, base, head)
     
+    conflicts = detect_conflicts(repo_path, base, head)
+    has_conflicts = len(conflicts) > 0
+    
     base_sha = _get_branch_sha(repo_path, base)
     head_sha = _get_branch_sha(repo_path, head)
 
@@ -129,16 +134,16 @@ def compare_branches(repo_path: str, base: str, head: str) -> dict:
             "reason": None if ff_possible else "branches have diverged"
         },
         "squash": {
-            "available": True,
-            "reason": None
+            "available": not has_conflicts,
+            "reason": "conflicts detected" if has_conflicts else None
         },
         "rebase": {
-            "available": True,
-            "reason": None
+            "available": not has_conflicts,
+            "reason": "conflicts detected" if has_conflicts else None
         },
         "merge_commit": {
-            "available": True,
-            "reason": None
+            "available": not has_conflicts,
+            "reason": "conflicts detected" if has_conflicts else None
         },
         "ff_possible": ff_possible, # legacy
     }
@@ -223,8 +228,15 @@ def fast_forward_merge(repo_path: str, target: str, source: str, user_id: int) -
             }
 
         try:
+            resp, status = HookPolicyEngine.validate_pre_receive(repo_path, target_sha, source_sha, f"refs/heads/{target}", str(user_id), {})
+            if status != 200:
+                return {"success": False, "ok": False, "code": "POLICY_REJECTED", "error": resp.get("error", "Branch protection rejected merge")}
+
             # Atomic update
             _run(repo_path, "update-ref", f"refs/heads/{target}", source_sha, target_sha)
+            
+            handle_post_receive(repo_path, target_sha, source_sha, f"refs/heads/{target}")
+            
             return {
                 "success": True, "ok": True, "strategy": "fast-forward",
                 "target": target, "source": source, "old_target_sha": target_sha,
@@ -281,8 +293,14 @@ def squash_merge(repo_path: str, target: str, source: str, message: str, user_id
             
             new_sha = _run(tmp_dir, "rev-parse", "HEAD").strip()
             
+            resp, status = HookPolicyEngine.validate_pre_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}", str(user_id), {})
+            if status != 200:
+                return {"success": False, "ok": False, "code": "POLICY_REJECTED", "error": resp.get("error", "Branch protection rejected merge")}
+
             # Atomic ref update
             _run(repo_path, "update-ref", f"refs/heads/{target}", new_sha, target_sha)
+            
+            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}")
             
             return {
                 "success": True, "ok": True, "strategy": "squash",
@@ -340,8 +358,14 @@ def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict
                 
             new_sha = _run(tmp_dir, "rev-parse", "HEAD").strip()
             
+            resp, status = HookPolicyEngine.validate_pre_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}", str(user_id), {})
+            if status != 200:
+                return {"success": False, "ok": False, "code": "POLICY_REJECTED", "error": resp.get("error", "Branch protection rejected merge")}
+
             # Atomic ref update
             _run(repo_path, "update-ref", f"refs/heads/{target}", new_sha, target_sha)
+            
+            handle_post_receive(repo_path, target_sha, new_sha, f"refs/heads/{target}")
             
             return {
                 "success": True, "ok": True, "strategy": "rebase",
