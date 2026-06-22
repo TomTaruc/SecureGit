@@ -17,21 +17,21 @@ from requests.exceptions import ConnectTimeout, ConnectionError, SSLError, Timeo
 
 logger = logging.getLogger(__name__)
 
-def _classify_error(e: Exception) -> str:
+def _classify_error(e: Exception) -> tuple[str, str]:
     if isinstance(e, ConnectTimeout):
-        return "Connection timeout — the target did not respond in time."
+        return "TIMEOUT", "Connection timeout — the target did not respond in time."
     if isinstance(e, SSLError):
-        return f"TLS/SSL handshake failed: {e}"
+        return "TLS_FAILURE", f"TLS/SSL handshake failed: {e}"
     if isinstance(e, ConnectionError):
         msg = str(e)
         if "Name or service not known" in msg or "nodename nor servname" in msg:
-            return f"DNS resolution failed: {msg}"
+            return "DNS_FAILURE", f"DNS resolution failed: {msg}"
         if "Connection refused" in msg:
-            return f"Connection refused: {msg}"
-        return f"Connection error: {msg}"
+            return "CONNECTION_REFUSED", f"Connection refused: {msg}"
+        return "UNKNOWN_DELIVERY_ERROR", f"Connection error: {msg}"
     if isinstance(e, Timeout):
-        return "Request timed out."
-    return str(e)
+        return "TIMEOUT", "Request timed out."
+    return "UNKNOWN_DELIVERY_ERROR", str(e)
 
 # Allow only localhost, LAN IPs, and .local domains
 _ALLOWED_HOSTS_RE = re.compile(
@@ -75,12 +75,12 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
     Returns HTTP status code of the delivery (0 = connection error).
     """
     if not endpoint.is_active:
-        return (0, "Webhook is not active") if return_error else 0
+        return (0, "INACTIVE", "Webhook is not active") if return_error else 0
     if event not in endpoint.events:
-        return (0, f"Event {event} not in configured events") if return_error else 0
+        return (0, "INVALID_EVENT", f"Event {event} not in configured events") if return_error else 0
     if not _is_internal_url(endpoint.target_url):
         logger.warning("Blocked external webhook URL: %s", endpoint.target_url)
-        return (0, "Only internal LAN/localhost URLs are allowed") if return_error else 0
+        return (0, "BLOCKED", "Only internal LAN/localhost URLs are allowed") if return_error else 0
 
     body = json.dumps(payload, default=str).encode("utf-8")
     headers = {
@@ -91,15 +91,17 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
         headers["X-SecureGit-Signature"] = _sign_payload(endpoint.secret_hash, body)
 
     error_msg = ""
+    error_code = ""
     try:
         resp = requests.post(endpoint.target_url, data=body, headers=headers, timeout=10)
         status = resp.status_code
         if not (200 <= status < 300):
+            error_code = "HTTP_ERROR"
             error_msg = f"HTTP {status}: {resp.text[:200]}"
     except requests.RequestException as e:
         logger.error("Webhook delivery failed to %s: %s", endpoint.target_url, e)
         status = 0
-        error_msg = _classify_error(e)
+        error_code, error_msg = _classify_error(e)
 
     # Update delivery status
     endpoint.last_delivery_at = datetime.now(timezone.utc)
@@ -107,7 +109,7 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
     db.session.commit()
     
     if return_error:
-        return status, error_msg
+        return status, error_code, error_msg
     return status
 
 

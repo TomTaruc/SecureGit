@@ -102,13 +102,17 @@ class HookPolicyEngine:
                     if v:
                         sub_env[k] = v
             try:
-                subprocess.run(
+                result = subprocess.run(
                     ["git", "merge-base", "--is-ancestor", oldrev, newrev],
-                    cwd=repo_path, check=True, capture_output=True,
+                    cwd=repo_path, capture_output=True,
                     env=sub_env, user="git", group="git",
                 )
-            except subprocess.CalledProcessError:
-                return f"Force pushing to '{branch_name}' is disabled.", 403
+                if result.returncode == 1:
+                    return f"Force pushing to '{branch_name}' is disabled.", 403
+                elif result.returncode != 0:
+                    import logging
+                    logging.getLogger(__name__).error("merge-base ancestor check failed unexpectedly with code %s: %s", result.returncode, result.stderr)
+                    return f"Unable to verify push safety for '{branch_name}'; push rejected as a precaution.", 403
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).error("merge-base ancestor check failed unexpectedly: %s", e)

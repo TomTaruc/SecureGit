@@ -128,6 +128,7 @@ def create_project():
 def get_project(username, project_name, project, current_user):
     data = project.to_dict()
     data["can_manage_collaborators"] = check_manage_collaborators(current_user, project)
+    data["can_manage_settings"] = check_manage_settings(current_user, project)
     return jsonify(data), 200
 
 

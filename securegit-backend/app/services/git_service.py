@@ -239,16 +239,27 @@ def git_show_stat(repo_path: str, commit_hash: str) -> dict:
     parts = meta_line.split("|", 6)
 
     # Stat
-    stat_out = _run(repo_path, "show", "--numstat", "--format=", h)
+    try:
+        parent_out = _run(repo_path, "log", "-1", "--format=%P", h).strip()
+        parents = parent_out.split()
+        if not parents:
+            # Initial commit: diff against empty tree hash
+            stat_out = _run(repo_path, "diff", "--numstat", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", h)
+        else:
+            # Diff against first parent (handles normal and merge commits predictably)
+            stat_out = _run(repo_path, "diff", "--numstat", parents[0], h)
+    except RuntimeError:
+        stat_out = ""
+
     files_changed = []
     total_add = 0
     total_del = 0
     for line in stat_out.splitlines():
         line = line.strip()
         if not line: continue
-        parts = line.split("\t")
-        if len(parts) == 3:
-            add_str, del_str, fname = parts
+        parts_stat = line.split("\t")
+        if len(parts_stat) == 3:
+            add_str, del_str, fname = parts_stat
             add = int(add_str) if add_str != "-" else 0
             delete = int(del_str) if del_str != "-" else 0
             files_changed.append({"file": fname, "added": add, "deleted": delete})

@@ -88,5 +88,17 @@ def delete_webhook(username, project_name, webhook_id, project, current_user):
 @require_project_access("manage_settings")
 def test_webhook(username, project_name, webhook_id, project, current_user):
     hook = WebhookEndpoint.query.filter_by(webhook_id=webhook_id, project_id=project.project_id).first_or_404()
-    status, error_msg = webhook_service.dispatch(hook, "push", {"test": True, "project": project.project_name}, return_error=True)
-    return jsonify({"delivery_status": status, "error_message": error_msg}), 200
+    status, error_code, error_msg = webhook_service.dispatch(hook, "push", {"test": True, "project": project.project_name}, return_error=True)
+    if status != 0 and 200 <= status < 300:
+        return jsonify({
+            "ok": True,
+            "message": "Webhook test successful.",
+            "target_url": hook.target_url
+        }), 200
+    
+    return jsonify({
+        "ok": False,
+        "code": error_code or "HTTP_ERROR",
+        "message": error_msg or f"HTTP status {status}",
+        "target_url": hook.target_url
+    }), 400

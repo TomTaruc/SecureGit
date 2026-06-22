@@ -31,11 +31,11 @@ export default function RepoLayout() {
     { label: 'Code',     to: `/${username}/${projectName}` },
     { label: 'Commits',  to: `/${username}/${projectName}/commits` },
     { label: 'Branches', to: `/${username}/${projectName}/branches` },
-    { label: 'Access',   to: `/${username}/${projectName}/access` },
+    { label: 'Access',   to: `/${username}/${projectName}/access`, show: project?.can_manage_collaborators },
     { label: 'Merge',    to: `/${username}/${projectName}/merge` },
-    { label: 'Protection', to: `/${username}/${projectName}/protection` },
-    { label: 'Webhooks',   to: `/${username}/${projectName}/webhooks` },
-  ];
+    { label: 'Protection', to: `/${username}/${projectName}/protection`, show: project?.can_manage_settings },
+    { label: 'Webhooks',   to: `/${username}/${projectName}/webhooks`, show: project?.can_manage_settings },
+  ].filter(t => t.show === undefined || t.show);
 
   return (
     <PageShell>

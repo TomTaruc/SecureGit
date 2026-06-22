@@ -35,7 +35,7 @@ function MergeTabContent() {
       ]);
       setCompareData(compRes?.data || null);
       setConflicts(confRes?.data || null);
-      if (compRes?.data?.ff_possible) {
+      if (compRes?.data?.fast_forward?.available) {
         setStrategy('ff');
       } else {
         setStrategy('squash');
@@ -84,7 +84,9 @@ function MergeTabContent() {
   const diffs = Array.isArray(safeCompareData.diff) ? safeCompareData.diff : [];
   const hasConflicts = Boolean(conflicts?.has_conflicts);
   const conflictList = Array.isArray(conflicts?.conflicts) ? conflicts.conflicts : [];
-  const ffPossible = Boolean(safeCompareData.ff_possible);
+  const ffPossible = safeCompareData?.fast_forward?.available === true;
+  const squashPossible = safeCompareData?.squash?.available === true;
+  const rebasePossible = safeCompareData?.rebase?.available === true;
 
   return (
     <div>
@@ -133,7 +135,7 @@ function MergeTabContent() {
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Badge variant="success">
-                    ✓ {ffPossible ? "Fast-forward available" : "Merge requires squash or rebase"}
+                    ✓ {ffPossible ? "Fast-forward available" : "Fast-forward unavailable: branches have diverged"}
                   </Badge>
                   <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>These branches can be automatically merged.</span>
                 </div>
@@ -147,8 +149,8 @@ function MergeTabContent() {
                   style={{ padding: '6px 12px', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)', fontSize: 'var(--font-size-sm)' }}
                 >
                   {ffPossible && <option value="ff">Fast-forward</option>}
-                  <option value="squash">Squash and Merge</option>
-                  <option value="rebase">Rebase and Merge</option>
+                  {squashPossible && <option value="squash">Squash and Merge</option>}
+                  {rebasePossible && <option value="rebase">Rebase and Merge</option>}
                 </select>
                 <Button variant="success" loading={merging} onClick={handleMerge}>
                   Merge Branch
