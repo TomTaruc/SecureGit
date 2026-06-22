@@ -127,3 +127,13 @@ def project(db_session, normal_user, mock_repo_dir):
     db_session.add(r)
     db_session.commit()
     return p
+
+@pytest.fixture(autouse=True)
+def mock_celery_delay(monkeypatch):
+    try:
+        monkeypatch.setattr(
+            "app.tasks.async_post_receive_task.delay",
+            lambda payload: None
+        )
+    except AttributeError:
+        pass

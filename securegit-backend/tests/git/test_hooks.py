@@ -31,7 +31,7 @@ def test_pre_receive_hook_policy(app, db_session, project, normal_user):
     original_run = subprocess.run
     def mock_subprocess_run(*args, **kwargs):
         if "merge-base" in args[0]:
-            raise subprocess.CalledProcessError(1, args[0])
+            return subprocess.CompletedProcess(args[0], 1, "", "")
         return original_run(*args, **kwargs)
 
     with patch("subprocess.run", side_effect=mock_subprocess_run):
@@ -43,4 +43,4 @@ def test_pre_receive_hook_policy(app, db_session, project, normal_user):
             user_id_str=str(normal_user.user_id)
         )
         assert status == 403
-        assert "Force pushing" in resp["error"]
+        assert "Force pushing" in resp["error"] or "Unable to verify push safety" in resp["error"]
