@@ -363,11 +363,16 @@ def rebase_merge(repo_path: str, target: str, source: str, user_id: int) -> dict
             )
             
             if result.returncode != 0:
+                status = subprocess.run(
+                    ["git", "diff", "--name-only", "--diff-filter=U"],
+                    cwd=tmp_dir, capture_output=True, text=True, shell=False,
+                )
+                conflicting_files = [f.strip() for f in status.stdout.splitlines() if f.strip()]
                 subprocess.run(["git", "rebase", "--abort"], cwd=tmp_dir, capture_output=True, shell=False, )
                 return {
                     "success": False, "ok": False, "code": "MERGE_CONFLICT",
                     "message": "Rebase conflict detected.", "strategy": "rebase",
-                    "target": target, "source": source, "files": []
+                    "target": target, "source": source, "files": conflicting_files
                 }
                 
             new_sha = _run(tmp_dir, "rev-parse", "HEAD").strip()

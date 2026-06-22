@@ -30,6 +30,8 @@ def app():
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "JWT_ACCESS_TOKEN_EXPIRES": False,
         "RATELIMIT_ENABLED": False,
+        "CELERY_TASK_ALWAYS_EAGER": True,
+        "CELERY_TASK_EAGER_PROPAGATES": True,
     })
 
     with app.app_context():

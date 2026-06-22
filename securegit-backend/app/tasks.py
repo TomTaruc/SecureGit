@@ -35,7 +35,8 @@ def async_post_receive_task(payload: dict):
         if not project:
             return
         
-        username = payload.get("username", "unknown")
+        actor = payload.get("actor", {})
+        username = actor.get("username", "unknown")
         for ref in payload.get("refs", []):
             if not ref["ref_name"].startswith("refs/heads/"):
                 continue
@@ -46,5 +47,6 @@ def async_post_receive_task(payload: dict):
                 "branch": branch_name,
                 "old_sha": ref["old_sha"],
                 "new_sha": ref["new_sha"],
+                "actor": actor,
                 "pusher": username,
             })

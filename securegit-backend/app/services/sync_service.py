@@ -90,16 +90,19 @@ def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str, acto
 
     db.session.commit()
 
-    actor_username = "unknown"
+    actor_data = {
+        "user_id": actor_user_id,
+        "username": "unknown"
+    }
     if actor_user_id:
         actor = User.query.get(actor_user_id)
         if actor:
-            actor_username = actor.username
+            actor_data["username"] = actor.username
 
     from ..tasks import async_post_receive_task
     payload = {
         "project_id": project.project_id,
-        "username": actor_username, 
+        "actor": actor_data, 
         "refs": [{
             "ref_name": ref,
             "old_sha": oldrev,

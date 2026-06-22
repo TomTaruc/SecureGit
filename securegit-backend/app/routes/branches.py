@@ -59,6 +59,10 @@ def create_branch(username, project_name, project, current_user):
     if err:
         return jsonify({"error": "validation_error", "message": err, "status": 422}), 422
 
+    err_from = validate_branch_name(from_branch)
+    if err_from:
+        return jsonify({"error": "validation_error", "message": f"Invalid from_branch: {err_from}", "status": 422}), 422
+
     repo_path = _repo_path(project)
     try:
         git_service.git_create_branch(repo_path, new_branch, from_branch)
@@ -84,6 +88,10 @@ def delete_branch(username, project_name, branch_name, project, current_user):
 
     if branch_name == project.default_branch:
         return jsonify({"error": "validation_error", "message": "Cannot delete the default branch.", "status": 422}), 422
+
+    err_name = validate_branch_name(branch_name)
+    if err_name:
+        return jsonify({"error": "validation_error", "message": f"Invalid branch_name: {err_name}", "status": 422}), 422
 
     # Check branch protection
     if _is_branch_protected_delete(project.repository.repo_id, branch_name):

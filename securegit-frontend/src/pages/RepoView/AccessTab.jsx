@@ -149,7 +149,6 @@ export default function AccessTab() {
           </div>
         </form>
       </div>
-      )}
 
       <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: '600', marginBottom: 'var(--space-4)' }}>Collaborators</h2>
       <div style={{ background: 'var(--color-surface)', border: 'var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>

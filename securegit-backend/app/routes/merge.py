@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required
 from ..services import merge_service
 from ..utils.decorators import require_project_access
 from ..utils.rbac import check_push_permission
+from ..utils.validators import validate_branch_name
 
 merge_bp = Blueprint("merge", __name__)
 
@@ -61,6 +62,14 @@ def do_merge(username, project_name, project, current_user):
     if not head:
         return jsonify({"error": "validation_error", "message": "'head' is required.", "status": 400}), 400
 
+    err_base = validate_branch_name(base)
+    if err_base:
+        return jsonify({"error": "validation_error", "message": f"Invalid base branch: {err_base}", "status": 422}), 422
+
+    err_head = validate_branch_name(head)
+    if err_head:
+        return jsonify({"error": "validation_error", "message": f"Invalid head branch: {err_head}", "status": 422}), 422
+
     repo_path = project.repository.repo_path
     if strategy == "squash":
         result = merge_service.squash_merge(repo_path, base, head, message, current_user.user_id)
@@ -69,5 +78,7 @@ def do_merge(username, project_name, project, current_user):
     else:
         result = merge_service.fast_forward_merge(repo_path, base, head, current_user.user_id)
 
-    status = 200 if result["success"] else 400
+    status = 200 if result.get("success") else 400
+    if result.get("code") == "POLICY_REJECTED":
+        status = 403
     return jsonify(result), status
