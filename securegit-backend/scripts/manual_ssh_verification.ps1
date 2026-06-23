@@ -1,30 +1,14 @@
-<#
-.SYNOPSIS
-SecureGit SSH Manual Verification Script
-
-.DESCRIPTION
-This script manually verifies SSH clone and push behavior across different roles
-(owner, read-only, write, admin) to ensure security and branch protection rules
-are enforced via SSH.
-
-.NOTES
-Please ensure the SecureGit backend and SSH server are running before executing this script.
-#>
-
-$RepoUrl = "ssh://git@localhost:2222/test_owner/test-repo.git"
+$RepoUrl = "ssh://git@localhost:2222/owner/test-repo.git"
 $OwnerKey = "C:\path\to\owner_key"
 $ReadOnlyKey = "C:\path\to\readonly_key"
 $WriteKey = "C:\path\to\write_key"
 $AdminKey = "C:\path\to\admin_key"
+$UnknownKey = "C:\path\to\unknown_key"
 $WorkDir = "C:\temp\securegit-ssh-verification"
 
 Write-Host "====================================================="
 Write-Host " SecureGit SSH Role & Branch Protection Verification "
 Write-Host "====================================================="
-Write-Host "This script verifies that SSH identities are properly enforced."
-Write-Host "Ensure that test_owner/test-repo exists and keys are registered."
-Write-Host "Press any key to start testing or Ctrl+C to abort..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 
 if (Test-Path $WorkDir) {
     Remove-Item -Recurse -Force $WorkDir
@@ -44,7 +28,7 @@ $results = @{
 
 Write-Host "`n--- Test 1: Owner Clone ---"
 $env:GIT_SSH_COMMAND = "ssh -i $OwnerKey -o IdentitiesOnly=yes -v"
-git clone $RepoUrl owner-clone
+git clone $RepoUrl owner-clone 2>&1 | Out-String
 if ($LASTEXITCODE -eq 0 -and (Test-Path "owner-clone")) {
     Write-Host "PASS: Owner clone succeeded." -ForegroundColor Green
     $results["OwnerClone"] = $true
@@ -54,7 +38,7 @@ if ($LASTEXITCODE -eq 0 -and (Test-Path "owner-clone")) {
 
 Write-Host "`n--- Test 2: Read Collaborator Clone ---"
 $env:GIT_SSH_COMMAND = "ssh -i $ReadOnlyKey -o IdentitiesOnly=yes -v"
-git clone $RepoUrl readonly-clone
+git clone $RepoUrl readonly-clone 2>&1 | Out-String
 if ($LASTEXITCODE -eq 0 -and (Test-Path "readonly-clone")) {
     Write-Host "PASS: Read collaborator clone succeeded." -ForegroundColor Green
     $results["ReadClone"] = $true
@@ -62,9 +46,9 @@ if ($LASTEXITCODE -eq 0 -and (Test-Path "readonly-clone")) {
     Write-Host "FAIL: Read collaborator clone failed." -ForegroundColor Red
 }
 
-Write-Host "`n--- Test 3: Unauthorized Clone ---"
-$env:GIT_SSH_COMMAND = "ssh -i C:\path\to\unknown_key -o IdentitiesOnly=yes -v"
-git clone $RepoUrl unauthorized-clone
+Write-Host "`n--- Test 3: Unauthorized Clone Rejection ---"
+$env:GIT_SSH_COMMAND = "ssh -i $UnknownKey -o IdentitiesOnly=yes -v"
+git clone $RepoUrl unauthorized-clone 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0 -and (-not (Test-Path "unauthorized-clone"))) {
     Write-Host "PASS: Unauthorized clone rejected." -ForegroundColor Green
     $results["UnauthorizedClone"] = $true
@@ -78,13 +62,13 @@ if (Test-Path "readonly-clone") {
     Set-Location "readonly-clone"
     "readonly push attempt" | Out-File readonly-test.txt
     git add readonly-test.txt
-    git commit -m "readonly push attempt"
-    git push origin main
+    git commit -m "readonly push attempt" | Out-Null
+    git push origin main 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         Write-Host "PASS: Read collaborator push rejected." -ForegroundColor Green
         $results["ReadPushRejected"] = $true
     } else {
-        Write-Host "FAIL: Read collaborator push succeeded when it should fail." -ForegroundColor Red
+        Write-Host "FAIL: Read collaborator push succeeded." -ForegroundColor Red
     }
     Set-Location $WorkDir
 } else {
@@ -93,14 +77,14 @@ if (Test-Path "readonly-clone") {
 
 Write-Host "`n--- Test 5: Write Collaborator Push to Unprotected Branch ---"
 $env:GIT_SSH_COMMAND = "ssh -i $WriteKey -o IdentitiesOnly=yes -v"
-git clone $RepoUrl write-clone
+git clone $RepoUrl write-clone 2>&1 | Out-String
 if ($LASTEXITCODE -eq 0 -and (Test-Path "write-clone")) {
     Set-Location "write-clone"
-    git checkout -b write-test
+    git checkout -b write-test 2>&1 | Out-String
     "write push test" | Out-File write-test.txt
     git add write-test.txt
-    git commit -m "write push test"
-    git push origin write-test
+    git commit -m "write push test" | Out-Null
+    git push origin write-test 2>&1 | Out-String
     if ($LASTEXITCODE -eq 0) {
         Write-Host "PASS: Write collaborator unprotected push succeeded." -ForegroundColor Green
         $results["WriteUnprotectedPush"] = $true
@@ -113,20 +97,19 @@ if ($LASTEXITCODE -eq 0 -and (Test-Path "write-clone")) {
 }
 
 Write-Host "`n--- Test 6: Write Collaborator Blocked by Protected Branch ---"
-Write-Host "NOTE: Please ensure 'main' is protected and requires Admin to push before this step."
 if (Test-Path "write-clone") {
     $env:GIT_SSH_COMMAND = "ssh -i $WriteKey -o IdentitiesOnly=yes -v"
     Set-Location "write-clone"
-    git checkout main
+    git checkout main 2>&1 | Out-String
     "protected push attempt" | Out-File protected-test.txt
     git add protected-test.txt
-    git commit -m "protected push attempt"
-    git push origin main
+    git commit -m "protected push attempt" | Out-Null
+    git push origin main 2>&1 | Out-String
     if ($LASTEXITCODE -ne 0) {
         Write-Host "PASS: Write collaborator protected push rejected." -ForegroundColor Green
         $results["WriteProtectedPush"] = $true
     } else {
-        Write-Host "FAIL: Write collaborator protected push succeeded when it should fail." -ForegroundColor Red
+        Write-Host "FAIL: Write collaborator protected push succeeded." -ForegroundColor Red
     }
     Set-Location $WorkDir
 } else {
@@ -135,13 +118,13 @@ if (Test-Path "write-clone") {
 
 Write-Host "`n--- Test 7: Admin/Owner Protected Branch Behavior ---"
 $env:GIT_SSH_COMMAND = "ssh -i $AdminKey -o IdentitiesOnly=yes -v"
-git clone $RepoUrl admin-clone
+git clone $RepoUrl admin-clone 2>&1 | Out-String
 if ($LASTEXITCODE -eq 0 -and (Test-Path "admin-clone")) {
     Set-Location "admin-clone"
-    "admin push attempt" | Out-File admin-test.txt
+    "admin protected push test" | Out-File admin-test.txt
     git add admin-test.txt
-    git commit -m "admin push attempt"
-    git push origin main
+    git commit -m "admin protected push test" | Out-Null
+    git push origin main 2>&1 | Out-String
     if ($LASTEXITCODE -eq 0) {
         Write-Host "PASS: Admin protected push succeeded." -ForegroundColor Green
         $results["AdminProtectedPush"] = $true
@@ -164,5 +147,6 @@ Write-Host "$(Get-Check $results["ReadPushRejected"]) Read collaborator push rej
 Write-Host "$(Get-Check $results["WriteUnprotectedPush"]) Write collaborator unprotected push passed"
 Write-Host "$(Get-Check $results["WriteProtectedPush"]) Write collaborator protected push rejected"
 Write-Host "$(Get-Check $results["AdminProtectedPush"]) Owner/admin protected push behavior verified"
+Write-Host "[ ] Server logs confirmed correct SECUREGIT_USER_ID"
 
 Write-Host "`nDone."

@@ -19,19 +19,19 @@ logger = logging.getLogger(__name__)
 
 def _classify_error(e: Exception) -> tuple[str, str]:
     if isinstance(e, ConnectTimeout):
-        return "TIMEOUT", "Connection timeout — the target did not respond in time."
+        return "TIMEOUT", "Webhook request timed out."
     if isinstance(e, SSLError):
-        return "TLS_FAILURE", f"TLS/SSL handshake failed: {e}"
+        return "TLS_FAILURE", "TLS verification failed."
     if isinstance(e, ConnectionError):
         msg = str(e)
-        if "Name or service not known" in msg or "nodename nor servname" in msg:
-            return "DNS_FAILURE", f"DNS resolution failed: {msg}"
+        if "Name or service not known" in msg or "nodename nor servname" in msg or "getaddrinfo failed" in msg:
+            return "DNS_FAILURE", "DNS resolution failed."
         if "Connection refused" in msg:
-            return "CONNECTION_REFUSED", f"Connection refused: {msg}"
-        return "UNKNOWN_DELIVERY_ERROR", f"Connection error: {msg}"
+            return "CONNECTION_REFUSED", "Connection refused while contacting webhook target."
+        return "UNKNOWN_DELIVERY_ERROR", "Webhook delivery failed."
     if isinstance(e, Timeout):
-        return "TIMEOUT", "Request timed out."
-    return "UNKNOWN_DELIVERY_ERROR", str(e)
+        return "TIMEOUT", "Webhook request timed out."
+    return "UNKNOWN_DELIVERY_ERROR", "Webhook delivery failed."
 
 # Allow only localhost, LAN IPs, and .local domains
 _ALLOWED_HOSTS_RE = re.compile(
@@ -97,7 +97,8 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
         status = resp.status_code
         if not (200 <= status < 300):
             error_code = "HTTP_ERROR"
-            error_msg = f"HTTP {status}: {resp.text[:200]}"
+            error_msg = "Webhook target returned an error status."
+            logger.error("Webhook target %s returned HTTP %s: %s", endpoint.target_url, status, resp.text[:200])
     except requests.RequestException as e:
         logger.error("Webhook delivery failed to %s: %s", endpoint.target_url, e)
         status = 0

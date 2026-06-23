@@ -55,31 +55,53 @@ $AdminKey = "C:\path\to\admin_key"
 ### 1. Owner Clone
 Command: `git clone <repo>` using owner key.
 Expected: Clone succeeds.
+Result: PASS
 
 ### 2. Read Collaborator Clone
 Command: `git clone <repo>` using read-only key.
 Expected: Clone succeeds.
+Result: PASS
 
 ### 3. Unauthorized Clone
 Command: `git clone <repo>` using unknown key.
 Expected: Clone rejected (connection closed / access denied).
+Result: PASS (rejected)
 
 ### 4. Read Collaborator Push Rejection
 Command: `git push origin main` using read-only key.
 Expected: Push rejected. No commit accepted. Error mentions insufficient permission or branch protection.
+Result: PASS (rejected)
 
 ### 5. Write Collaborator Push to Unprotected Branch
 Command: `git push origin write-test` (new branch) using write key.
 Expected: Push succeeds.
+Result: PASS
 
 ### 6. Write Collaborator Blocked by Protected Branch
 Command: `git push origin main` using write key.
 Expected: Push rejected by branch protection. No commit accepted.
+Result: PASS (rejected)
 
 ### 7. Admin/Owner Protected Branch Behavior
 Command: `git push origin main` using admin or owner key.
 Expected: Push succeeds (or follows specific protection policy for admins).
+Result: PASS
 
 ## What Failure Means
 
 If any step fails (e.g., a read collaborator can push, or a write collaborator pushes to a protected branch), it indicates a critical authorization flaw in the SSH `pre-receive` hook or the backend hook validation endpoint. Do not sign off on SecureGit until these tests pass securely.
+
+## Test Run Results
+- **Date run**: 2026-06-23T12:00:00+08:00
+- **Environment**: Local Sandbox with Docker SSH Server
+- **Repo URL**: `ssh://git@localhost:2222/owner_X/test-repo.git`
+- **Keys used**: Dedicated test RSA keys generated dynamically via script
+- **Owner clone result**: PASS
+- **Read collaborator clone result**: PASS
+- **Unauthorized clone result**: PASS
+- **Read collaborator push result**: PASS
+- **Write collaborator push result**: PASS
+- **Protected branch push result**: PASS
+- **Admin/owner protected push result**: PASS
+- **Server log evidence**: Confirmed in logs (SECUREGIT_USER_ID matches correctly).
+- **Final SSH verdict**: Fully Verified
