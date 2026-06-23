@@ -92,7 +92,9 @@ def post_receive():
             return jsonify({"error": "invalid_path"}), 400
         elif str(e) == "repo_not_found":
             return jsonify({"error": "repo_not_found"}), 404
-        return jsonify({"error": str(e)}), 500
+        from flask import current_app
+        current_app.logger.exception("Internal error in post_receive")
+        return jsonify({"error": "INTERNAL_ERROR"}), 500
 
 @internal_bp.post("/hook/pre-receive")
 def pre_receive():

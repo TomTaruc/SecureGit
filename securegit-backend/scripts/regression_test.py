@@ -1,19 +1,38 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-def run_tests():
-    print("Starting Regression Tests via Pytest...")
-    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    test_path = os.path.join(backend_dir, "tests", "test_regression.py")
-    
+def main():
+    backend_dir = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(backend_dir)
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "tests/test_regression.py",
+        "-v",
+        "--tb=short",
+    ]
+
+    print("Running:", " ".join(cmd))
+    print("Working directory:", backend_dir)
+
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", test_path, "-v"],
-        cwd=backend_dir,
-        env={**os.environ, "PYTHONPATH": backend_dir}
+        cmd,
+        cwd=str(backend_dir),
+        env=env,
+        text=True,
     )
-    sys.exit(result.returncode)
+
+    if result.returncode != 0:
+        print("Regression tests failed.")
+        return result.returncode
+
+    print("Regression tests passed.")
+    return 0
 
 if __name__ == "__main__":
-    run_tests()
-
+    raise SystemExit(main())

@@ -44,7 +44,7 @@ describe('BranchesTab', () => {
     });
   });
 
-  it('hides branch creation input if can_create_branch is false', () => {
+  it('hides branch creation input if can_create_branch is false', async () => {
     mocks.useOutletContext.mockReturnValue({
       username: 'owner',
       projectName: 'test',
@@ -54,6 +54,8 @@ describe('BranchesTab', () => {
 
     render(<BranchesTab />);
     
-    expect(screen.queryByPlaceholderText('New branch name')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByPlaceholderText('New branch name')).not.toBeInTheDocument();
+    });
   });
 });

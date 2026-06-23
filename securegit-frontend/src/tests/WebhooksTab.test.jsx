@@ -28,7 +28,7 @@ describe('WebhooksTab', () => {
     webhooksApi.listWebhooks.mockResolvedValue({ data: [] });
   });
 
-  it('shows permission error if can_manage_settings is false', () => {
+  it('shows permission error if can_manage_settings is false', async () => {
     mocks.useOutletContext.mockReturnValue({
       username: 'owner',
       projectName: 'test',
@@ -37,7 +37,9 @@ describe('WebhooksTab', () => {
 
     render(<WebhooksTab />);
     
-    expect(screen.getByText(/You do not have permission to view or manage webhooks/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/You do not have permission to view or manage webhooks/i)).toBeInTheDocument();
+    });
   });
 
   it('shows webhooks if can_manage_settings is true', async () => {

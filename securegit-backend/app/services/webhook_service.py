@@ -93,7 +93,7 @@ def dispatch(endpoint: WebhookEndpoint, event: str, payload: dict, return_error:
     error_msg = ""
     error_code = ""
     try:
-        resp = requests.post(endpoint.target_url, data=body, headers=headers, timeout=10)
+        resp = requests.post(endpoint.target_url, data=body, headers=headers, timeout=5)
         status = resp.status_code
         if not (200 <= status < 300):
             error_code = "HTTP_ERROR"

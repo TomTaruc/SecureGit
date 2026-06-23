@@ -82,7 +82,9 @@ def revoke_key(key_id: int):
     try:
         ssh_service.remove_key(user_id, key.fingerprint)
     except Exception as e:
-        return jsonify({"error": "ssh_error", "message": str(e), "status": 500}), 500
+        from flask import current_app
+        current_app.logger.exception("Failed to revoke SSH key")
+        return jsonify({"error": "SSH_ERROR", "message": "Failed to revoke SSH key.", "status": 500}), 500
 
     audit_service.log(actor_id=user_id, action="ssh_key.revoke", target_type="ssh_key", target_id=key_id)
     db.session.delete(key)

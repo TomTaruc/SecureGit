@@ -32,7 +32,7 @@ describe('MergeTab', () => {
     branchesApi.listBranches.mockResolvedValue({ data: [] });
   });
 
-  it('shows permission error if can_push is false', () => {
+  it('shows permission error if can_push is false', async () => {
     mocks.useOutletContext.mockReturnValue({
       username: 'owner',
       projectName: 'test',
@@ -41,10 +41,12 @@ describe('MergeTab', () => {
 
     render(<MergeTab />);
     
-    expect(screen.getByText(/You do not have permission to merge branches/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/You do not have permission to merge branches/i)).toBeInTheDocument();
+    });
   });
 
-  it('shows merge UI if can_push is true', () => {
+  it('shows merge UI if can_push is true', async () => {
     mocks.useOutletContext.mockReturnValue({
       username: 'owner',
       projectName: 'test',
@@ -53,8 +55,10 @@ describe('MergeTab', () => {
 
     render(<MergeTab />);
     
-    expect(screen.queryByText(/You do not have permission to merge branches/i)).not.toBeInTheDocument();
-    expect(screen.getByText('Base branch')).toBeInTheDocument();
-    expect(screen.getByText('Compare branch')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/You do not have permission to merge branches/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Base branch')).toBeInTheDocument();
+      expect(screen.getByText('Compare branch')).toBeInTheDocument();
+    });
   });
 });

@@ -39,8 +39,10 @@ describe('AccessTab', () => {
 
     render(<AccessTab />);
     
-    expect(screen.getByText(/You do not have permission to view or manage collaborators/i)).toBeInTheDocument();
-    expect(screen.queryByText('Add Collaborator')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/You do not have permission to view or manage collaborators/i)).toBeInTheDocument();
+      expect(screen.queryByText('Add Collaborator')).not.toBeInTheDocument();
+    });
   });
 
   it('manager can see add collaborator and remove button', async () => {

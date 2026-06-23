@@ -85,7 +85,9 @@ def create_project():
 
         git_service.git_init_bare(repo_path)
     except Exception as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
+        from flask import current_app
+        current_app.logger.exception("Failed to initialize git repository")
+        return jsonify({"error": "GIT_ERROR", "message": "Failed to initialize repository.", "status": 500}), 500
 
     project = Project(
         owner_user_id=user_id,

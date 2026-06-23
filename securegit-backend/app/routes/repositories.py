@@ -27,7 +27,9 @@ def tree(username, project_name, project, current_user):
         entries = git_service.git_ls_tree(repo_path, branch, path)
         return jsonify(entries), 200
     except Exception as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
+        from flask import current_app
+        current_app.logger.exception("Failed to read repository tree")
+        return jsonify({"error": "GIT_TREE_ERROR", "message": "Unable to read repository tree.", "status": 500}), 500
 
 
 @repos_bp.get("/<username>/<project_name>/blob")
@@ -42,8 +44,12 @@ def blob(username, project_name, project, current_user):
     repo_path = _get_repo_path(project)
     try:
         raw = git_service.git_show_file(repo_path, branch, filepath)
-    except RuntimeError as e:
-        return jsonify({"error": "not_found", "message": str(e), "status": 404}), 404
+    except (RuntimeError, ValueError) as e:
+        if isinstance(e, ValueError):
+            return jsonify({"error": "BAD_REQUEST", "message": "Invalid file path.", "status": 400}), 400
+        from flask import current_app
+        current_app.logger.exception("Failed to read file blob")
+        return jsonify({"error": "FILE_NOT_FOUND", "message": "File not found.", "status": 404}), 404
 
     # Detect if binary
     content_text, is_binary = git_service.decode_file_content(raw)
@@ -102,8 +108,12 @@ def raw(username, project_name, project, current_user):
 
     try:
         content = git_service.git_show_file(repo_path, branch, filepath)
-    except RuntimeError as e:
-        return jsonify({"error": "not_found", "message": str(e), "status": 404}), 404
+    except (RuntimeError, ValueError) as e:
+        if isinstance(e, ValueError):
+            return jsonify({"error": "BAD_REQUEST", "message": "Invalid file path.", "status": 400}), 400
+        from flask import current_app
+        current_app.logger.exception("Failed to read raw file")
+        return jsonify({"error": "FILE_NOT_FOUND", "message": "File not found.", "status": 404}), 404
 
     try:
         redis_client.setex(cache_key, 60, content) # Cache for 60s to handle burst requests

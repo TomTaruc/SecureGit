@@ -73,7 +73,9 @@ def list_commits(username, project_name, project, current_user):
         commits = git_service.git_log(repo_path, branch, author, since, until, skip, per_page, query)
         total   = git_service.git_log_count(repo_path, branch, query)
     except RuntimeError as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 500}), 500
+        from flask import current_app
+        current_app.logger.exception("Failed to read commit history")
+        return jsonify({"error": "GIT_ERROR", "message": "Unable to read commit history.", "status": 500}), 500
 
     # Async sync to DB (non-blocking)
     try:
@@ -100,7 +102,9 @@ def commit_detail(username, project_name, commit_hash, project, current_user):
     try:
         detail = git_service.git_show_stat(repo_path, commit_hash)
     except (RuntimeError, ValueError) as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 404}), 404
+        from flask import current_app
+        current_app.logger.exception("Failed to read commit detail")
+        return jsonify({"error": "COMMIT_NOT_FOUND", "message": "Commit not found.", "status": 404}), 404
     return jsonify(detail), 200
 
 
@@ -112,5 +116,7 @@ def commit_diff(username, project_name, commit_hash, project, current_user):
     try:
         diff = git_service.git_diff(repo_path, commit_hash)
     except (RuntimeError, ValueError) as e:
-        return jsonify({"error": "git_error", "message": str(e), "status": 404}), 404
+        from flask import current_app
+        current_app.logger.exception("Failed to read commit diff")
+        return jsonify({"error": "COMMIT_NOT_FOUND", "message": "Commit not found.", "status": 404}), 404
     return jsonify(diff), 200
