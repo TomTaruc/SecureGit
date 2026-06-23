@@ -39,7 +39,7 @@ export default function RepoLayout() {
 
   return (
     <PageShell>
-      <div style={{ maxWidth: '1100px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         {/* Repo header */}
         <div style={{ marginBottom: 'var(--space-4)' }}>
           {loading ? (
@@ -53,12 +53,13 @@ export default function RepoLayout() {
               </h1>
               <Badge variant="default">🔒 {project?.visibility}</Badge>
               {/* Clone URL */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginLeft: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginLeft: 'auto', minWidth: 0, maxWidth: '100%', flexWrap: 'wrap' }}>
                 <code style={{
                   fontFamily: 'var(--font-mono)', fontSize: 'var(--font-size-xs)',
                   background: 'var(--color-surface-2)', padding: '4px 10px',
                   borderRadius: 'var(--radius-sm)', border: 'var(--border)',
                   color: 'var(--color-text-secondary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {project?.clone_url}
                 </code>

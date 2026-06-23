@@ -28,9 +28,12 @@ export default function PageShell({ children, sidebar }) {
       <main style={{
         flex: 1,
         marginLeft: sidebar ? 'var(--sidebar-width)' : 0,
-        padding: 'var(--space-6)',
-        maxWidth: sidebar ? `calc(var(--content-max-w) + var(--sidebar-width))` : 'var(--content-max-w)',
+        width: sidebar ? 'calc(100vw - var(--sidebar-width))' : '100%',
+        maxWidth: 'none',
         minWidth: 0,
+        boxSizing: 'border-box',
+        padding: 'var(--space-6)',
+        overflowX: 'hidden',
       }}>
         {children}
       </main>

@@ -35,7 +35,7 @@ export default function NewProjectPage() {
 
   return (
     <PageShell>
-      <div style={{ maxWidth: '600px', margin: '0 auto', paddingTop: 'var(--space-8)' }}>
+      <div style={{ maxWidth: 'var(--content-form-w)', margin: '0 auto', paddingTop: 'var(--space-8)' }}>
         <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: '600', marginBottom: 'var(--space-2)' }}>Create a new repository</h1>
         <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-8)' }}>A repository contains all project files, including the revision history.</p>
 

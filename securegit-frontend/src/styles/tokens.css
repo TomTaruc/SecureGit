@@ -88,7 +88,13 @@
   /* ── Layout ────────────────────────────────────────────────────────────── */
   --nav-height:     60px;
   --sidebar-width:  220px;
-  --content-max-w:  1200px;
+  --content-max-w: none;
+  --content-wide-w: none;
+  --content-dashboard-w: none;
+  --content-settings-w: none;
+  --content-form-w: 720px;
+  --page-padding-x: clamp(20px, 2vw, 36px);
+  --page-padding-y: 24px;
 
   /* ── Transitions ───────────────────────────────────────────────────────── */
   --transition-fast:   80ms ease;

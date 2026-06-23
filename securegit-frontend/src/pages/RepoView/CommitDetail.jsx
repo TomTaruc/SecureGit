@@ -29,7 +29,7 @@ export default function CommitDetail() {
 
   return (
     <div>
-      <div style={{ maxWidth: '1000px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         {/* Breadcrumb */}
         <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Link to={`/${username}/${projectName}`} style={{ color: 'var(--color-text-secondary)', textDecoration: 'none' }}>{username}/{projectName}</Link>

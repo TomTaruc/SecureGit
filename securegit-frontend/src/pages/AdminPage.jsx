@@ -88,7 +88,7 @@ export default function AdminPage() {
 
   return (
     <PageShell>
-      <div style={{ maxWidth: '1200px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: '600', marginBottom: 'var(--space-6)' }}>Site Administration</h1>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--space-6)', marginBottom: 'var(--space-8)' }}>

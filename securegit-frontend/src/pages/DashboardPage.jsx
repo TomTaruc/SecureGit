@@ -139,13 +139,13 @@ export default function DashboardPage() {
 
   return (
     <PageShell sidebar={<DashboardSidebar projects={projects} loading={loading} />}>
-      <div style={{ maxWidth: '900px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         <h1 style={{ fontSize: 'var(--font-size-xl)', fontWeight: '600', marginBottom: 'var(--space-6)' }}>
           Dashboard
         </h1>
 
         {/* Stats grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-8)' }}>
           <StatCard label="Projects"      value={stats?.total_projects} loading={loading} />
           <StatCard label="Commits Today" value={stats?.commits_today}  loading={loading} />
           <StatCard label="Active Users"  value={stats?.active_users}   loading={loading} />

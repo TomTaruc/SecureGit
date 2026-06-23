@@ -25,7 +25,7 @@ export default function ProjectsPage() {
 
   return (
     <PageShell>
-      <div style={{ maxWidth: '1000px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-6)' }}>
           <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: '600' }}>Projects</h1>
           <Button onClick={() => navigate('/projects/new')}>+ New Project</Button>

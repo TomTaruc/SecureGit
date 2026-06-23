@@ -36,7 +36,7 @@ export default function SettingsLayout() {
 
   return (
     <PageShell sidebar={sidebar}>
-      <div style={{ maxWidth: '800px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         <Outlet />
       </div>
     </PageShell>

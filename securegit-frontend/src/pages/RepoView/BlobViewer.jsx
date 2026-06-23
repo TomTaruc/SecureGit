@@ -34,7 +34,7 @@ export default function BlobViewer() {
 
   return (
     <PageShell>
-      <div style={{ maxWidth: '1100px' }}>
+      <div style={{ width: '100%', maxWidth: 'none' }}>
         {/* File info header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
