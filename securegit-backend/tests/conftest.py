@@ -18,8 +18,8 @@ def mock_redis(monkeypatch):
 def app():
     """Create and configure a new app instance for the entire test session."""
     os.environ["FLASK_ENV"] = "testing"
-    os.environ["SECRET_KEY"] = "test-secret"
-    os.environ["JWT_SECRET_KEY"] = "test-jwt-secret"
+    os.environ["SECRET_KEY"] = "test-secret-key-for-securegit-32-bytes-minimum"
+    os.environ["JWT_SECRET_KEY"] = "test-jwt-secret-key-for-securegit-32-bytes-minimum"
     os.environ["INTERNAL_HOOK_SECRET"] = "test-hook-secret"
     os.environ["DATABASE_URL"] = "sqlite:///:memory:"
     os.environ["GIT_REPOS_BASE"] = tempfile.gettempdir()
@@ -119,6 +119,47 @@ def mock_repo_dir():
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 @pytest.fixture
+def populated_repo_dir():
+    import subprocess
+    temp_dir = tempfile.mkdtemp()
+    
+    # Init a non-bare repo first to make commits
+    work_dir = tempfile.mkdtemp()
+    subprocess.run(["git", "init", work_dir], check=True, capture_output=True)
+    
+    # Configure git
+    subprocess.run(["git", "config", "user.name", "Test User"], cwd=work_dir, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=work_dir, check=True)
+    
+    # Make commit A on main
+    with open(os.path.join(work_dir, "README.md"), "w") as f:
+        f.write("# Test Repo\n")
+    subprocess.run(["git", "add", "README.md"], cwd=work_dir, check=True)
+    subprocess.run(["git", "commit", "-m", "Commit A"], cwd=work_dir, check=True)
+    subprocess.run(["git", "branch", "-M", "main"], cwd=work_dir, check=True)
+    
+    # Make commit B on main
+    os.makedirs(os.path.join(work_dir, "src"), exist_ok=True)
+    with open(os.path.join(work_dir, "src", "app.py"), "w") as f:
+        f.write("print('hello')\n")
+    subprocess.run(["git", "add", "src/app.py"], cwd=work_dir, check=True)
+    subprocess.run(["git", "commit", "-m", "Commit B"], cwd=work_dir, check=True)
+    
+    # Create feature branch from B and make commit C
+    subprocess.run(["git", "checkout", "-b", "feature"], cwd=work_dir, check=True)
+    with open(os.path.join(work_dir, "binary.bin"), "wb") as f:
+        f.write(b'\x00\x01\x02\x03\x04')
+    subprocess.run(["git", "add", "binary.bin"], cwd=work_dir, check=True)
+    subprocess.run(["git", "commit", "-m", "Commit C"], cwd=work_dir, check=True)
+    
+    # Clone it to the bare repo
+    subprocess.run(["git", "clone", "--bare", work_dir, temp_dir], check=True, capture_output=True)
+    
+    yield temp_dir
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    shutil.rmtree(work_dir, ignore_errors=True)
+
+@pytest.fixture
 def project(db_session, normal_user, mock_repo_dir):
     from app.models.project import Project
     from app.models.repository import Repository
@@ -126,6 +167,18 @@ def project(db_session, normal_user, mock_repo_dir):
     db_session.add(p)
     db_session.flush()
     r = Repository(project_id=p.project_id, repo_path=mock_repo_dir, clone_url="ssh://git@localhost/test-repo.git")
+    db_session.add(r)
+    db_session.commit()
+    return p
+
+@pytest.fixture
+def populated_project(db_session, normal_user, populated_repo_dir):
+    from app.models.project import Project
+    from app.models.repository import Repository
+    p = Project(owner_user_id=normal_user.user_id, project_name="test-repo-pop")
+    db_session.add(p)
+    db_session.flush()
+    r = Repository(project_id=p.project_id, repo_path=populated_repo_dir, clone_url="ssh://git@localhost/test-repo-pop.git")
     db_session.add(r)
     db_session.commit()
     return p

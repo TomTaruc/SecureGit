@@ -186,5 +186,5 @@ def refresh():
 @jwt_required()
 def me():
     user_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     return jsonify(user.to_dict(include_sensitive=True)), 200

@@ -8,6 +8,7 @@ from ..models.commit import Commit, CommitFile
 from ..models.file import File
 from ..services import git_service
 from ..utils.decorators import require_project_access
+from ..utils.errors import api_error
 
 commits_bp = Blueprint("commits", __name__)
 
@@ -74,8 +75,8 @@ def list_commits(username, project_name, project, current_user):
         total   = git_service.git_log_count(repo_path, branch, query)
     except RuntimeError as e:
         from flask import current_app
-        current_app.logger.exception("Failed to read commit history")
-        return jsonify({"error": "GIT_ERROR", "message": "Unable to read commit history.", "status": 500}), 500
+        current_app.logger.warning(f"Git log failed: {e}")
+        return api_error("NOT_FOUND", "Branch or commit not found.", 404)
 
     # Async sync to DB (non-blocking)
     try:

@@ -82,7 +82,7 @@ def create_user():
 @require_admin
 def update_user(user_id: int):
     actor_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = request.get_json(silent=True) or {}
 
     if "role" in data and data["role"] in ("admin", "dev", "read"):
@@ -105,7 +105,7 @@ def update_user(user_id: int):
 @require_admin
 def delete_user(user_id: int):
     actor_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     if user.user_id == actor_id:
         return jsonify({"error": "forbidden", "message": "Cannot delete your own account.", "status": 403}), 403
     audit_service.log(actor_id=actor_id, action="admin.user.delete", target_type="user", target_id=user_id, detail=user.username)

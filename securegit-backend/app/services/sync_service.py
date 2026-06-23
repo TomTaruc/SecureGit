@@ -95,7 +95,7 @@ def handle_post_receive(repo_path: str, oldrev: str, newrev: str, ref: str, acto
         "username": "unknown"
     }
     if actor_user_id:
-        actor = User.query.get(actor_user_id)
+        actor = db.session.get(User, actor_user_id)
         if actor:
             actor_data["username"] = actor.username
 

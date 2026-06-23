@@ -371,10 +371,7 @@ def git_ls_tree(repo_path: str, ref: str, path: str = "") -> list[dict]:
     else:
         args.append(_safe_ref(ref))
 
-    try:
-        out = _run(repo_path, *args)
-    except RuntimeError:
-        return []
+    out = _run(repo_path, *args)
 
     entries = []
     for line in out.splitlines():

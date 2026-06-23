@@ -53,7 +53,7 @@ def list_projects():
 @jwt_required()
 def create_project():
     user_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = request.get_json(silent=True) or {}
 
     project_name   = (data.get("project_name") or "").strip()
@@ -224,7 +224,7 @@ def add_collaborator(username, project_name, project, current_user):
     permission_level = data.get("permission", "read")
     custom_permissions = data.get("permissions")
 
-    target_user = User.query.get_or_404(target_user_id)
+    target_user = db.get_or_404(User, target_user_id)
 
     if target_user.user_id == project.owner_user_id:
         return jsonify({"error": "conflict", "message": "Cannot add project owner as collaborator.", "status": 409}), 409

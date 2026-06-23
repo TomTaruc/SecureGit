@@ -4,6 +4,7 @@ Route decorators for authentication, admin access, and project permission checks
 from functools import wraps
 from flask import jsonify, abort
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from ..extensions import db
 from ..models.user import User
 from ..models.project import Project
 from ..utils.rbac import check_permission
@@ -15,7 +16,7 @@ def require_auth(fn):
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
         user_id = int(get_jwt_identity())
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             abort(401)
         if user.is_suspended:
@@ -30,7 +31,7 @@ def require_admin(fn):
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
         user_id = int(get_jwt_identity())
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user or user.is_suspended:
             abort(401)
         if user.role != "admin":
@@ -49,7 +50,7 @@ def require_project_access(permission: str = "read"):
         def wrapper(*args, **kwargs):
             verify_jwt_in_request()
             user_id = int(get_jwt_identity())
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if not user or user.is_suspended:
                 abort(401)
 

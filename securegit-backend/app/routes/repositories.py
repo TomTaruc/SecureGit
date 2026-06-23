@@ -5,6 +5,7 @@ from flask import Blueprint, jsonify, request, Response
 from flask_jwt_extended import jwt_required
 from ..services import git_service
 from ..utils.decorators import require_project_access
+from ..utils.errors import api_error
 
 repos_bp = Blueprint("repos", __name__)
 
@@ -26,10 +27,10 @@ def tree(username, project_name, project, current_user):
     try:
         entries = git_service.git_ls_tree(repo_path, branch, path)
         return jsonify(entries), 200
-    except Exception as e:
+    except RuntimeError as e:
         from flask import current_app
-        current_app.logger.exception("Failed to read repository tree")
-        return jsonify({"error": "GIT_TREE_ERROR", "message": "Unable to read repository tree.", "status": 500}), 500
+        current_app.logger.warning(f"Git ls-tree failed: {e}")
+        return api_error("NOT_FOUND", "Branch or path not found.", 404)
 
 
 @repos_bp.get("/<username>/<project_name>/blob")

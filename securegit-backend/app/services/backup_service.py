@@ -67,7 +67,8 @@ def backup_database(dest_dir: str) -> tuple[str, int]:
         raise RuntimeError("pg_dump timed out after 300 seconds")
 
     if result.returncode != 0:
-        raise RuntimeError(f"pg_dump failed: {result.stderr.decode()}")
+        logger.error(f"pg_dump failed: {result.stderr.decode()}")
+        raise RuntimeError("pg_dump failed.")
     with gzip.open(dump_path, "wb") as f:
         f.write(result.stdout)
 
@@ -178,7 +179,8 @@ def restore_backup(filename: str, dest_dir: str) -> None:
             raise RuntimeError("pg_restore timed out after 600 seconds")
 
         if result.returncode != 0:
-            raise RuntimeError(f"pg_restore failed: {result.stderr.decode()}")
+            logger.error(f"pg_restore failed: {result.stderr.decode()}")
+            raise RuntimeError("pg_restore failed.")
         
         logger.info("Database restore completed.")
     else:

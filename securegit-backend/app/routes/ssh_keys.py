@@ -22,7 +22,7 @@ def list_keys():
 @limiter.limit("10 per hour", key_func=get_jwt_identity)
 def add_key():
     user_id = int(get_jwt_identity())
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     data = request.get_json(silent=True) or {}
 
     title      = (data.get("title") or "").strip()
@@ -66,7 +66,9 @@ def add_key():
         ssh_service.add_key(user_id, public_key)
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "ssh_error", "message": f"Failed to register SSH key: {e}", "status": 500}), 500
+        from flask import current_app
+        current_app.logger.exception("Failed to register SSH key")
+        return jsonify({"error": "SSH_ERROR", "message": "Failed to register SSH key.", "status": 500}), 500
 
     db.session.commit()
     audit_service.log(actor_id=user_id, action="ssh_key.add", target_type="ssh_key", target_id=key.key_id)

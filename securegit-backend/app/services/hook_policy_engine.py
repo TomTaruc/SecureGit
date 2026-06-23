@@ -1,6 +1,7 @@
 import os
 import subprocess
 from flask import jsonify
+from ..extensions import db
 
 class HookPolicyEngine:
     @staticmethod
@@ -32,10 +33,10 @@ class HookPolicyEngine:
             from ..models.user import User
             try:
                 user_id = int(user_id_str)
-                user = User.query.get(user_id)
+                user = db.session.get(User, user_id)
                 if user:
                     from ..models.project import Project
-                    project = Project.query.get(repo.project_id)
+                    project = db.session.get(Project, repo.project_id)
                     is_owner = (project.owner_user_id == user_id)
                     is_admin = (user.role == "admin")
                     

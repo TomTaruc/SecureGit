@@ -2,6 +2,7 @@
 RBAC permission checking utilities.
 """
 from typing import Optional
+from ..extensions import db
 from ..models.collaborator import Collaborator
 from ..models.project import Project
 from ..models.user import User
@@ -73,8 +74,8 @@ def get_user_permission(user_id: int, project_id: int) -> Optional[str]:
     using IDs rather than ORM objects. Used by internal/SSH-auth endpoints.
     Returns 'admin', 'write', 'read', or None.
     """
-    user = User.query.get(user_id)
-    project = Project.query.get(project_id)
+    user = db.session.get(User, user_id)
+    project = db.session.get(Project, project_id)
     if not user or not project:
         return None
 

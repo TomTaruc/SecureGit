@@ -11,14 +11,14 @@ users_bp = Blueprint("users", __name__)
 @users_bp.get("/profile")
 @jwt_required()
 def get_profile():
-    user = User.query.get_or_404(int(get_jwt_identity()))
+    user = db.get_or_404(User, int(get_jwt_identity()))
     return jsonify(user.to_dict(include_sensitive=True)), 200
 
 
 @users_bp.patch("/profile")
 @jwt_required()
 def update_profile():
-    user = User.query.get_or_404(int(get_jwt_identity()))
+    user = db.get_or_404(User, int(get_jwt_identity()))
     data = request.get_json(silent=True) or {}
 
     if "email" in data:
@@ -38,7 +38,7 @@ def update_profile():
 @users_bp.patch("/profile/password")
 @jwt_required()
 def change_password():
-    user = User.query.get_or_404(int(get_jwt_identity()))
+    user = db.get_or_404(User, int(get_jwt_identity()))
     data = request.get_json(silent=True) or {}
 
     current_password = data.get("current_password", "")

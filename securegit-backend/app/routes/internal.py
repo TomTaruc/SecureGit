@@ -39,7 +39,7 @@ def ssh_auth():
     if not all([user_id, owner, project_name, action]):
         return jsonify({"error": "missing_fields"}), 400
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user or user.is_suspended:
         return jsonify({"error": "User suspended or not found."}), 403
 
